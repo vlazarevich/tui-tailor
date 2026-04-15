@@ -117,14 +117,28 @@ const GIT_BRANCH: BlockDefinition = {
 
 ### 7. TUI visual language
 
-**Choice:** Monospace font throughout, box-drawing characters for borders (via CSS `border-image` or Unicode in pseudo-elements), color as the primary visual hierarchy tool.
+**Choice:** Monospace font throughout, terminal-grid spacing, color as the primary visual hierarchy tool.
 
-**Specifics:**
+**Typography:**
 - Font: system monospace stack (`ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Monaco, monospace`)
-- No font-size variation for hierarchy — use color intensity and border weight instead
-- Box-drawing borders on panels: `┌─┐│└─┘` aesthetic via CSS borders styled to look like single/double line-drawing
-- Section headers use muted uppercase text (current pattern, keep it)
-- Active/selected states use accent color border, not background fill
+- Single font size: 16px everywhere — no font-size variation for hierarchy
+- Line-height: 1.5 (24px) globally, explicitly reset on form controls
+- No letter-spacing variation — uniform tracking so characters align vertically
+- Visual hierarchy via: color intensity, opacity, uppercase, background — never font size
+
+**Spacing — terminal character grid:**
+- Horizontal: always in `ch` units (1ch inner, 2ch outer) so monospace text aligns vertically
+- Vertical padding: 0 (single row), 12px/py-3 (half line-height, border row), 24px/py-6 (full line-height, prominent)
+- Vertical gaps: 24px (full line-height) between sections
+- All spacing aligns to the terminal row grid
+
+**Borders vs outlines:**
+- Structural layout boundaries (toolbar, status bar, panel separators): CSS `border`
+- Inner elements (buttons, inputs, selects, zone panels, option panels): CSS `outline outline-1` — does not affect layout sizing
+- Active/focus states: outline color changes to accent
+
+**Section headers:** muted color, uppercase, no extra spacing — single terminal row
+**Active/selected states:** accent outline color + optional background fill
 
 ## Risks / Trade-offs
 
