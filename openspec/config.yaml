@@ -1,0 +1,17 @@
+schema: spec-driven
+
+# Project context (optional)
+# This is shown to AI when creating artifacts.
+context: |
+  Tech stack: Static web app, HTML/Tailwind/React, bundled with Vite
+  Hosted on GitHub Pages, no backend
+  Config state in localStorage, shareable via URL fragment
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# rules:
+#   proposal:
+#     - Keep proposals under 500 words
+#     - Always include a "Non-goals" section
+#   tasks:
+#     - Break tasks into chunks of max 2 hours
