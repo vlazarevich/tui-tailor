@@ -1,15 +1,4 @@
-## Requirements
-
-### Requirement: Block definition schema
-Each block in the registry SHALL have: a unique string ID, a display name, a category, a list of compatible surface IDs, a named elements map (each element with role, source or value, optional format, and optional themeSlot), a primary themeSlot for the block, style presets as element template strings, and a default style preset name.
-
-#### Scenario: Block definition is complete
-- **WHEN** a block is defined in the registry
-- **THEN** it has all required fields: id, name, category, surfaces, elements (with at least one content-role element), themeSlot, styles (with at least one preset as a template string), and defaultStyle
-
-#### Scenario: Element definition is valid
-- **WHEN** a block defines an element
-- **THEN** the element has a name, a role (content, icon, or connector), and either a source field or a value field
+## ADDED Requirements
 
 ### Requirement: Element-based block definition
 Each block in the registry SHALL define its data as named elements instead of flat format strings. Each element SHALL have: a unique name within the block, a role (`content`, `icon`, or `connector`), an optional `themeSlot` override, and either a `source` field (scenario data key) or a `value` field (static text). Elements with a source MAY also define a `format` string where `{}` is replaced by the resolved source value.
@@ -32,32 +21,6 @@ Each block's style presets SHALL be template strings referencing element names w
 #### Scenario: Style presets vary element selection
 - **WHEN** comparing zen and extended styles for `git-branch`
 - **THEN** zen selects fewer elements (e.g., `"{dirty} {branch}"`) while extended selects more (e.g., `"{icon} {branch} {ahead}{behind} {dirty}"`)
-
-### Requirement: Surface-scoped block filtering
-The registry SHALL provide a function to retrieve all blocks compatible with a given surface ID. Only blocks that list the surface in their `surfaces` array SHALL be returned.
-
-#### Scenario: Filter blocks for terminal prompt
-- **WHEN** requesting blocks for surface "terminal-prompt"
-- **THEN** only blocks with "terminal-prompt" in their surfaces array are returned
-
-#### Scenario: Block compatible with multiple surfaces
-- **WHEN** a block lists both "terminal-prompt" and "vim-statusline" in its surfaces
-- **THEN** it appears in the results for both surface queries
-
-### Requirement: Category system
-Blocks SHALL be organized into categories. The registry SHALL provide a function to group blocks by category for a given surface.
-
-#### Scenario: Group blocks by category
-- **WHEN** requesting categorized blocks for a surface
-- **THEN** blocks are returned grouped by their category field
-- **AND** categories with no compatible blocks for that surface are omitted
-
-### Requirement: Category ordering
-The block catalog SHALL display categories in a defined order: essential, git, status, environment, cloud. Categories SHALL NOT be displayed in arbitrary/insertion order.
-
-#### Scenario: Categories render in order
-- **WHEN** the block catalog displays categories for terminal-prompt
-- **THEN** essential appears before git, git before status, status before environment, environment before cloud
 
 ### Requirement: Environment category blocks
 The registry SHALL include blocks for common runtime/language version display: `node-version`, `python-version`, `ruby-version`, `golang-version`, `rust-version`, `java-version`. Each SHALL define elements (version source, icon, connector), zen/minimal/extended style presets, and be compatible with the terminal-prompt surface.
@@ -84,6 +47,13 @@ The registry SHALL include `jobs` (background job count) and `cmd-duration` (las
 - **WHEN** requesting blocks for surface "terminal-prompt" in the "status" category
 - **THEN** the results include at least 4 blocks: exit-code, time, jobs, cmd-duration
 
+### Requirement: Category ordering
+The block catalog SHALL display categories in a defined order: essential, git, status, environment, cloud. Categories SHALL NOT be displayed in arbitrary/insertion order.
+
+#### Scenario: Categories render in order
+- **WHEN** the block catalog displays categories for terminal-prompt
+- **THEN** essential appears before git, git before status, status before environment, environment before cloud
+
 ### Requirement: Per-element theme sub-slots
 The theme system SHALL support sub-slots for fine-grained block element coloring. Sub-slots follow the pattern `parentSlot-qualifier` (e.g., `vcs-ahead`, `vcs-behind`, `vcs-dirty`). Themes MAY define sub-slots explicitly. If a sub-slot is not defined in the active theme, it SHALL fall back to its parent slot.
 
@@ -94,6 +64,27 @@ The theme system SHALL support sub-slots for fine-grained block element coloring
 #### Scenario: Sub-slot falls back to parent
 - **WHEN** a theme defines `vcs: "#a6e3a1"` but does not define `vcs-behind`
 - **THEN** elements referencing `vcs-behind` fall back to "#a6e3a1"
+
+## MODIFIED Requirements
+
+### Requirement: Block definition schema
+Each block in the registry SHALL have: a unique string ID, a display name, a category, a list of compatible surface IDs, a named elements map (each element with role, source or value, optional format, and optional themeSlot), a primary themeSlot for the block, style presets as element template strings, and a default style preset name.
+
+#### Scenario: Block definition is complete
+- **WHEN** a block is defined in the registry
+- **THEN** it has all required fields: id, name, category, surfaces, elements (with at least one content-role element), themeSlot, styles (with at least one preset as a template string), and defaultStyle
+
+#### Scenario: Element definition is valid
+- **WHEN** a block defines an element
+- **THEN** the element has a name, a role (content, icon, or connector), and either a source field or a value field
+
+### Requirement: Seed data for M1
+The registry SHALL include block definitions sufficient for a full terminal prompt experience. At minimum: one surface ("Terminal Prompt") with two zones, and at least 19 blocks across 5 categories (essential, git, status, environment, cloud). All blocks SHALL use the element-based definition model.
+
+#### Scenario: App renders with full block catalog
+- **WHEN** the app loads
+- **THEN** the surface switcher shows at least one surface
+- **AND** the block catalog shows at least 19 blocks in at least 5 categories
 
 ### Requirement: Surface definition schema
 Each surface SHALL have: a unique string ID, a display name, a list of zone definitions (each with ID and display name), a set of global options (e.g., multiline, promptChar) with types and defaults, and a default zone layout configuration.
@@ -109,11 +100,3 @@ Each surface SHALL have: a unique string ID, a display name, a list of zone defi
 #### Scenario: Surface defines default zone layout
 - **WHEN** a surface "terminal-prompt" is defined
 - **THEN** it includes a default zone layout of type "plain" with gap " "
-
-### Requirement: Seed data
-The registry SHALL include block definitions sufficient for a full terminal prompt experience. At minimum: one surface ("Terminal Prompt") with two zones, and at least 19 blocks across 5 categories (essential, git, status, environment, cloud). All blocks SHALL use the element-based definition model.
-
-#### Scenario: App renders with full block catalog
-- **WHEN** the app loads
-- **THEN** the surface switcher shows at least one surface
-- **AND** the block catalog shows at least 19 blocks in at least 5 categories

@@ -1,46 +1,48 @@
-import { createContext, useContext, useReducer, type ReactNode, type Dispatch } from 'react'
-import type { BlockInstance, SurfaceConfig } from './types'
-import { getSurfaceById } from './surfaces'
-import { DEFAULT_THEME_ID } from './themes'
+import { createContext, useContext, useReducer, type ReactNode, type Dispatch } from "react";
+import type { BlockInstance, SurfaceConfig, ZoneConfig, ZoneLayout } from "./types";
+import { getSurfaceById } from "./surfaces";
+import { DEFAULT_THEME_ID } from "./themes";
 
 export interface ComposerState {
-  activeSurfaceId: string
-  configs: Record<string, SurfaceConfig>
+  activeSurfaceId: string;
+  configs: Record<string, SurfaceConfig>;
 }
 
 type Action =
-  | { type: 'ADD_BLOCK'; zoneId: string; blockId: string; style: string }
-  | { type: 'REMOVE_BLOCK'; zoneId: string; index: number }
-  | { type: 'REORDER_BLOCK'; zoneId: string; fromIndex: number; toIndex: number }
-  | { type: 'SET_STYLE'; zoneId: string; index: number; style: string }
-  | { type: 'SET_THEME'; themeId: string }
-  | { type: 'SWITCH_SURFACE'; surfaceId: string }
-  | { type: 'SET_GLOBAL_OPTION'; key: string; value: string | boolean }
-  | { type: 'LOAD_CONFIG'; config: SurfaceConfig }
+  | { type: "ADD_BLOCK"; zoneId: string; blockId: string; style: string }
+  | { type: "REMOVE_BLOCK"; zoneId: string; index: number }
+  | { type: "REORDER_BLOCK"; zoneId: string; fromIndex: number; toIndex: number }
+  | { type: "SET_STYLE"; zoneId: string; index: number; style: string }
+  | { type: "SET_ZONE_LAYOUT"; zoneId: string; layout: ZoneLayout }
+  | { type: "SET_ALL_ZONES_LAYOUT"; layout: ZoneLayout }
+  | { type: "SET_THEME"; themeId: string }
+  | { type: "SWITCH_SURFACE"; surfaceId: string }
+  | { type: "SET_GLOBAL_OPTION"; key: string; value: string | boolean }
+  | { type: "LOAD_CONFIG"; config: SurfaceConfig };
 
-export type ComposerAction = Action
+export type ComposerAction = Action;
 
 function getActiveConfig(state: ComposerState): SurfaceConfig {
-  return state.configs[state.activeSurfaceId] ?? createDefaultConfig(state.activeSurfaceId)
+  return state.configs[state.activeSurfaceId] ?? createDefaultConfig(state.activeSurfaceId);
 }
 
 export function createDefaultConfig(surfaceId: string): SurfaceConfig {
-  const surface = getSurfaceById(surfaceId)
-  const zones: Record<string, BlockInstance[]> = {}
-  const globalOptions: Record<string, string | boolean> = {}
+  const surface = getSurfaceById(surfaceId);
+  const zones: Record<string, ZoneConfig> = {};
+  const globalOptions: Record<string, string | boolean> = {};
   if (surface) {
     for (const zone of surface.zones) {
-      zones[zone.id] = []
+      zones[zone.id] = { blocks: [] };
     }
     for (const opt of surface.globalOptions) {
-      globalOptions[opt.id] = opt.defaultValue
+      globalOptions[opt.id] = opt.defaultValue;
     }
   }
-  return { surfaceId, zones, globalOptions, themeId: DEFAULT_THEME_ID }
+  return { surfaceId, zones, globalOptions, themeId: DEFAULT_THEME_ID };
 }
 
 function composerReducer(state: ComposerState, action: Action): ComposerState {
-  const config = getActiveConfig(state)
+  const config = getActiveConfig(state);
 
   function updateConfig(patch: Partial<SurfaceConfig>): ComposerState {
     return {
@@ -49,89 +51,104 @@ function composerReducer(state: ComposerState, action: Action): ComposerState {
         ...state.configs,
         [state.activeSurfaceId]: { ...config, ...patch },
       },
-    }
+    };
   }
 
   switch (action.type) {
-    case 'ADD_BLOCK': {
-      const zone = config.zones[action.zoneId] ?? []
+    case "ADD_BLOCK": {
+      const zoneConfig = config.zones[action.zoneId] ?? { blocks: [] };
+      const blocks = [...zoneConfig.blocks, { blockId: action.blockId, style: action.style }];
       return updateConfig({
-        zones: { ...config.zones, [action.zoneId]: [...zone, { blockId: action.blockId, style: action.style }] },
-      })
+        zones: { ...config.zones, [action.zoneId]: { ...zoneConfig, blocks } },
+      });
     }
-    case 'REMOVE_BLOCK': {
-      const zone = [...(config.zones[action.zoneId] ?? [])]
-      zone.splice(action.index, 1)
-      return updateConfig({ zones: { ...config.zones, [action.zoneId]: zone } })
+    case "REMOVE_BLOCK": {
+      const zoneConfig = config.zones[action.zoneId] ?? { blocks: [] };
+      const blocks = [...zoneConfig.blocks];
+      blocks.splice(action.index, 1);
+      return updateConfig({ zones: { ...config.zones, [action.zoneId]: { ...zoneConfig, blocks } } });
     }
-    case 'REORDER_BLOCK': {
-      const zone = [...(config.zones[action.zoneId] ?? [])]
-      const [item] = zone.splice(action.fromIndex, 1)
-      zone.splice(action.toIndex, 0, item)
-      return updateConfig({ zones: { ...config.zones, [action.zoneId]: zone } })
+    case "REORDER_BLOCK": {
+      const zoneConfig = config.zones[action.zoneId] ?? { blocks: [] };
+      const blocks = [...zoneConfig.blocks];
+      const [item] = blocks.splice(action.fromIndex, 1);
+      blocks.splice(action.toIndex, 0, item);
+      return updateConfig({ zones: { ...config.zones, [action.zoneId]: { ...zoneConfig, blocks } } });
     }
-    case 'SET_STYLE': {
-      const zone = [...(config.zones[action.zoneId] ?? [])]
-      if (zone[action.index]) {
-        zone[action.index] = { ...zone[action.index], style: action.style }
+    case "SET_STYLE": {
+      const zoneConfig = config.zones[action.zoneId] ?? { blocks: [] };
+      const blocks = [...zoneConfig.blocks];
+      if (blocks[action.index]) {
+        blocks[action.index] = { ...blocks[action.index], style: action.style };
       }
-      return updateConfig({ zones: { ...config.zones, [action.zoneId]: zone } })
+      return updateConfig({ zones: { ...config.zones, [action.zoneId]: { ...zoneConfig, blocks } } });
     }
-    case 'SET_THEME': {
-      return updateConfig({ themeId: action.themeId })
+    case "SET_ZONE_LAYOUT": {
+      const zoneConfig = config.zones[action.zoneId] ?? { blocks: [] };
+      return updateConfig({
+        zones: { ...config.zones, [action.zoneId]: { ...zoneConfig, layout: action.layout } },
+      });
     }
-    case 'SWITCH_SURFACE': {
-      const existing = state.configs[action.surfaceId]
+    case "SET_ALL_ZONES_LAYOUT": {
+      const updatedZones: Record<string, ZoneConfig> = {};
+      for (const [zoneId, zoneConfig] of Object.entries(config.zones)) {
+        updatedZones[zoneId] = { ...zoneConfig, layout: action.layout };
+      }
+      return updateConfig({ zones: updatedZones });
+    }
+    case "SET_THEME": {
+      return updateConfig({ themeId: action.themeId });
+    }
+    case "SWITCH_SURFACE": {
+      const existing = state.configs[action.surfaceId];
       return {
         ...state,
         activeSurfaceId: action.surfaceId,
         configs: existing
           ? state.configs
           : { ...state.configs, [action.surfaceId]: createDefaultConfig(action.surfaceId) },
-      }
+      };
     }
-    case 'SET_GLOBAL_OPTION': {
-      return updateConfig({ globalOptions: { ...config.globalOptions, [action.key]: action.value } })
+    case "SET_GLOBAL_OPTION": {
+      return updateConfig({ globalOptions: { ...config.globalOptions, [action.key]: action.value } });
     }
-    case 'LOAD_CONFIG': {
+    case "LOAD_CONFIG": {
       return {
         ...state,
         activeSurfaceId: action.config.surfaceId,
         configs: { ...state.configs, [action.config.surfaceId]: action.config },
-      }
+      };
     }
     default:
-      return state
+      return state;
   }
 }
 
-const ComposerStateContext = createContext<ComposerState | null>(null)
-const ComposerDispatchContext = createContext<Dispatch<Action> | null>(null)
+const ComposerStateContext = createContext<ComposerState | null>(null);
+const ComposerDispatchContext = createContext<Dispatch<Action> | null>(null);
 
 export function ComposerProvider({ initialState, children }: { initialState: ComposerState; children: ReactNode }) {
-  const [state, dispatch] = useReducer(composerReducer, initialState)
+  const [state, dispatch] = useReducer(composerReducer, initialState);
   return (
     <ComposerStateContext value={state}>
-      <ComposerDispatchContext value={dispatch}>
-        {children}
-      </ComposerDispatchContext>
+      <ComposerDispatchContext value={dispatch}>{children}</ComposerDispatchContext>
     </ComposerStateContext>
-  )
+  );
 }
 
 export function useComposerState(): ComposerState {
-  const ctx = useContext(ComposerStateContext)
-  if (!ctx) throw new Error('useComposerState must be used within ComposerProvider')
-  return ctx
+  const ctx = useContext(ComposerStateContext);
+  if (!ctx) throw new Error("useComposerState must be used within ComposerProvider");
+  return ctx;
 }
 
 export function useComposerDispatch(): Dispatch<Action> {
-  const ctx = useContext(ComposerDispatchContext)
-  if (!ctx) throw new Error('useComposerDispatch must be used within ComposerProvider')
-  return ctx
+  const ctx = useContext(ComposerDispatchContext);
+  if (!ctx) throw new Error("useComposerDispatch must be used within ComposerProvider");
+  return ctx;
 }
 
 export function useActiveConfig(): SurfaceConfig {
-  const state = useComposerState()
-  return state.configs[state.activeSurfaceId] ?? createDefaultConfig(state.activeSurfaceId)
+  const state = useComposerState();
+  return state.configs[state.activeSurfaceId] ?? createDefaultConfig(state.activeSurfaceId);
 }

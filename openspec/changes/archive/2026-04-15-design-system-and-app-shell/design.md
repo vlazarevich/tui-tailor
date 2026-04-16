@@ -7,6 +7,7 @@ The project is pivoting to a surface-first architecture where users compose bloc
 ## Goals / Non-Goals
 
 **Goals:**
+
 - Establish Tailwind CSS with a theme token system using semantic color slots
 - Build a TUI-aesthetic visual language (monospace, box-drawing borders, color-driven hierarchy)
 - Create the app shell layout with surface switcher, block catalog, canvas, and status bar
@@ -15,6 +16,7 @@ The project is pivoting to a surface-first architecture where users compose bloc
 - Implement base64 config string for sharing/importing configurations
 
 **Non-Goals:**
+
 - Populating actual block content (that's M2 — Terminal Prompt surface)
 - Building export generators (M2/M3)
 - Live preview rendering (M2)
@@ -29,6 +31,7 @@ The project is pivoting to a surface-first architecture where users compose bloc
 **Choice:** Tailwind CSS v4 with CSS custom properties for theme tokens.
 
 **Why over alternatives:**
+
 - vs. CSS Modules: Tailwind's utility-first approach is faster for prototyping and keeps styles co-located with markup. The TUI aesthetic needs consistent spacing/color application — utilities enforce this.
 - vs. styled-components/Emotion: No runtime CSS-in-JS overhead. Tailwind's static extraction is better for a GitHub Pages static site.
 - vs. raw CSS (current): Won't scale. Already seeing repetitive color/spacing values.
@@ -42,6 +45,7 @@ Theme tokens are CSS custom properties (`--color-surface-primary`, `--color-text
 **Why:** Decouples blocks from palettes entirely. Adding a new theme is just defining ~15 color values. Blocks never mention hex colors. The two orthogonal axes (theme = colors, style preset = information density) stay clean.
 
 **Slot categories:**
+
 - Surface: `surface-primary`, `surface-secondary`, `surface-elevated`, `surface-terminal`
 - Text: `text-primary`, `text-secondary`, `text-muted`
 - Semantic: `color-vcs`, `color-path`, `color-host`, `color-user`, `color-error`, `color-warning`, `color-info`, `color-success`
@@ -79,6 +83,7 @@ src/
 **Choice:** A single `ComposerContext` with `useReducer` for the active surface configuration. No external state library.
 
 **Why:**
+
 - The state shape is well-defined: `{ activeSurface, zones: Record<ZoneId, BlockInstance[]>, theme, globalOptions }`
 - Actions are discrete: `ADD_BLOCK`, `REMOVE_BLOCK`, `REORDER_BLOCK`, `SET_STYLE`, `SET_THEME`, `SWITCH_SURFACE`
 - Auto-save to localStorage fires on every state change (debounced)
@@ -90,18 +95,18 @@ src/
 
 ```typescript
 const GIT_BRANCH: BlockDefinition = {
-  id: 'git-branch',
-  name: 'Git Branch',
-  category: 'git',
-  surfaces: ['terminal-prompt', 'vim-statusline', 'claude-code'],
+  id: "git-branch",
+  name: "Git Branch",
+  category: "git",
+  surfaces: ["terminal-prompt", "vim-statusline", "claude-code"],
   styles: {
-    zen:      { format: '{branch}',       icon: false },
-    minimal:  { format: ' {branch}',     icon: true  },
-    extended: { format: ' {branch} {ahead}{behind}', icon: true },
+    zen: { format: "{branch}", icon: false },
+    minimal: { format: " {branch}", icon: true },
+    extended: { format: " {branch} {ahead}{behind}", icon: true },
   },
-  themeSlot: 'vcs',
-  defaultStyle: 'minimal',
-}
+  themeSlot: "vcs",
+  defaultStyle: "minimal",
+};
 ```
 
 **Why:** The catalog is curated, not user-generated. Static definitions enable tree-shaking, type safety, and zero-latency catalog rendering. New blocks are added by contributors via PRs.
@@ -120,6 +125,7 @@ const GIT_BRANCH: BlockDefinition = {
 **Choice:** Monospace font throughout, terminal-grid spacing, color as the primary visual hierarchy tool.
 
 **Typography:**
+
 - Font: system monospace stack (`ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Monaco, monospace`)
 - Single font size: 16px everywhere — no font-size variation for hierarchy
 - Line-height: 1.5 (24px) globally, explicitly reset on form controls
@@ -127,14 +133,16 @@ const GIT_BRANCH: BlockDefinition = {
 - Visual hierarchy via: color intensity, opacity, uppercase, background — never font size
 
 **Spacing — terminal character grid:**
+
 - Horizontal: always in `ch` units (1ch inner, 2ch outer) so monospace text aligns vertically
 - Vertical padding: 0 (single row), 12px/py-3 (half line-height, border row), 24px/py-6 (full line-height, prominent)
 - Vertical gaps: 24px (full line-height) between sections
 - All spacing aligns to the terminal row grid
 
 **Borders vs outlines:**
+
 - Structural layout boundaries (toolbar, status bar, panel separators): CSS `border`
-- Inner elements (buttons, inputs, selects, zone panels, option panels): CSS `outline outline-1` — does not affect layout sizing
+- Inner elements (buttons, inputs, selects, zone panels, option panels): CSS `outline` — does not affect layout sizing
 - Active/focus states: outline color changes to accent
 
 **Section headers:** muted color, uppercase, no extra spacing — single terminal row
