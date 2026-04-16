@@ -85,6 +85,20 @@ const terminalPromptScenarios: ScenarioPreset[] = [
       time: "16:03",
     },
   },
+  {
+    id: "multiline-command",
+    name: "Multiline Cmd",
+    surfaceId: "terminal-prompt",
+    data: {
+      cwd: "~/projects/webapp",
+      user: "dev",
+      host: "macbook",
+      branch: "main",
+      dirty: false,
+      multilineCommand: true,
+      time: "10:00",
+    },
+  },
 ];
 
 export const SCENARIOS: ScenarioPreset[] = [...terminalPromptScenarios];

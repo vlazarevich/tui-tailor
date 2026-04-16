@@ -36,7 +36,7 @@ export default function BlockCatalog() {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <div className="px-[1ch] py-3 text-text-muted uppercase border-b border-border-muted">Blocks</div>
+      <div className="px-[1ch] py-3 text-text-muted uppercase outline-1 outline-border-muted">Blocks</div>
       <div className="px-[1ch] pt-3 pb-6">
         <input
           type="text"

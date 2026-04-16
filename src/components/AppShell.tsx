@@ -7,7 +7,8 @@ import SurfaceSwitcher from "./SurfaceSwitcher";
 import ThemePicker from "./ThemePicker";
 import BlockCatalog from "./BlockCatalog";
 import Canvas from "./Canvas";
-import ConfigShare from "./ConfigShare";
+import ExportPanel from "./ExportPanel";
+import PreviewPane from "./PreviewPane";
 import StatusBar from "./StatusBar";
 
 export default function AppShell() {
@@ -36,7 +37,7 @@ export default function AppShell() {
 
   return (
     <div className="flex flex-col h-screen bg-surface-primary text-text-primary font-mono">
-      {/* Toolbar — 3 terminal rows: border (1lh) + content (1lh) + border (1lh) */}
+      {/* Toolbar */}
       <div className="flex items-center justify-between px-[2ch] py-3 bg-surface-secondary border-y border-border-primary">
         <div className="flex items-center gap-[2ch]">
           <span className="text-accent">tui-tailor</span>
@@ -45,19 +46,28 @@ export default function AppShell() {
         <ThemePicker />
       </div>
 
-      {/* Main content */}
+      {/* Main content — three columns */}
       <div className="flex flex-1 overflow-hidden">
         {/* Block catalog — left panel */}
         <div className="w-56 border-r border-border-primary bg-surface-primary overflow-hidden flex flex-col">
           <BlockCatalog />
         </div>
 
-        {/* Canvas — center */}
+        {/* Center column — zone editors (top) + preview (bottom) */}
         <div className="flex-1 overflow-hidden flex flex-col">
-          <Canvas />
-          <div className="px-[2ch] pb-6">
-            <ConfigShare />
+          {/* Zone editors — shrink to content, max 75% of column height */}
+          <div className="overflow-y-auto outline-1 outline-border-primary max-h-[75%]">
+            <Canvas />
           </div>
+          {/* Preview pane — fills remaining space */}
+          <div className="flex-1 overflow-y-auto min-h-0">
+            <PreviewPane />
+          </div>
+        </div>
+
+        {/* Export panel — right column */}
+        <div className="w-64 border-l border-border-primary bg-surface-primary overflow-hidden flex flex-col">
+          <ExportPanel />
         </div>
       </div>
 

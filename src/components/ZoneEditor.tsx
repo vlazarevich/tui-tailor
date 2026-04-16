@@ -2,6 +2,8 @@ import { useState } from "react";
 import type { BlockInstance, ZoneDefinition, ZoneLayout, ZoneLayoutType } from "../lib/types";
 import { getBlockById } from "../lib/registry";
 import { useComposerDispatch } from "../lib/composerContext";
+import BlockTag from "./BlockTag";
+import BlockPopup from "./BlockPopup";
 
 const LAYOUT_OPTIONS: { type: ZoneLayoutType; label: string }[] = [
   { type: "plain", label: "Plain" },
@@ -18,11 +20,11 @@ function defaultLayoutConfig(type: ZoneLayoutType): ZoneLayout {
     case "flow":
       return { type: "flow", config: { gap: " " } };
     case "brackets":
-      return { type: "brackets", config: { open: "[", close: "]", padding: " ", gap: " " } };
+      return { type: "brackets", config: { open: "[", close: "]", padding: "", gap: "─" } };
     case "powerline":
-      return { type: "powerline", config: { separator: "", terminator: "" } };
+      return { type: "powerline", config: { separator: ">", terminator: ">" } };
     case "powertab":
-      return { type: "powertab", config: { separator: "", terminator: "" } };
+      return { type: "powertab", config: { separator: ">", terminator: ">" } };
   }
 }
 
@@ -30,53 +32,66 @@ interface Props {
   zone: ZoneDefinition;
   blocks: BlockInstance[];
   layout?: ZoneLayout;
+  enabledZones: ZoneDefinition[];
+  onDisable?: () => void;
 }
 
-export default function ZoneEditor({ zone, blocks, layout }: Props) {
+export default function ZoneEditor({ zone, blocks, layout, enabledZones, onDisable }: Props) {
   const dispatch = useComposerDispatch();
-  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+  const [openPopup, setOpenPopup] = useState<{ index: number; anchor: HTMLButtonElement } | null>(null);
 
   const currentLayoutType = layout?.type ?? "plain";
-
-  function handleRemove(index: number) {
-    dispatch({ type: "REMOVE_BLOCK", zoneId: zone.id, index });
-    if (expandedIndex === index) setExpandedIndex(null);
-  }
-
-  function handleMoveUp(index: number) {
-    if (index === 0) return;
-    dispatch({ type: "REORDER_BLOCK", zoneId: zone.id, fromIndex: index, toIndex: index - 1 });
-    if (expandedIndex === index) setExpandedIndex(index - 1);
-  }
-
-  function handleMoveDown(index: number) {
-    if (index >= blocks.length - 1) return;
-    dispatch({ type: "REORDER_BLOCK", zoneId: zone.id, fromIndex: index, toIndex: index + 1 });
-    if (expandedIndex === index) setExpandedIndex(index + 1);
-  }
 
   function handleSetStyle(index: number, style: string) {
     dispatch({ type: "SET_STYLE", zoneId: zone.id, index, style });
   }
 
+  function handleMoveLeft(index: number, anchor: HTMLButtonElement) {
+    if (index === 0) return;
+    dispatch({ type: "REORDER_BLOCK", zoneId: zone.id, fromIndex: index, toIndex: index - 1 });
+    setOpenPopup({ index: index - 1, anchor });
+  }
+
+  function handleMoveRight(index: number, anchor: HTMLButtonElement) {
+    if (index >= blocks.length - 1) return;
+    dispatch({ type: "REORDER_BLOCK", zoneId: zone.id, fromIndex: index, toIndex: index + 1 });
+    setOpenPopup({ index: index + 1, anchor });
+  }
+
+  function handleMoveToZone(index: number, toZoneId: string) {
+    dispatch({ type: "MOVE_BLOCK_TO_ZONE", fromZoneId: zone.id, index, toZoneId });
+    setOpenPopup(null);
+  }
+
+  function handleRemove(index: number) {
+    dispatch({ type: "REMOVE_BLOCK", zoneId: zone.id, index });
+    setOpenPopup(null);
+  }
+
   function handleLayoutChange(type: ZoneLayoutType) {
-    const newLayout = defaultLayoutConfig(type);
-    dispatch({ type: "SET_ZONE_LAYOUT", zoneId: zone.id, layout: newLayout });
+    dispatch({ type: "SET_ZONE_LAYOUT", zoneId: zone.id, layout: defaultLayoutConfig(type) });
   }
 
   function handleApplyToAll() {
-    const newLayout = defaultLayoutConfig(currentLayoutType);
-    dispatch({ type: "SET_ALL_ZONES_LAYOUT", layout: newLayout });
-  }
-
-  function handleLayoutConfigChange(layout: ZoneLayout) {
-    dispatch({ type: "SET_ZONE_LAYOUT", zoneId: zone.id, layout });
+    dispatch({ type: "SET_ALL_ZONES_LAYOUT", layout: defaultLayoutConfig(currentLayoutType) });
   }
 
   return (
     <div className="outline-1 outline-border-primary">
+      {/* Zone header */}
       <div className="px-[1ch] py-0 bg-surface-secondary text-text-muted flex items-center justify-between">
-        <span className="uppercase">{zone.name}</span>
+        <div className="flex items-center gap-[1ch]">
+          <span className="uppercase">{zone.name}</span>
+          {zone.optional && onDisable && (
+            <button
+              onClick={onDisable}
+              className="text-text-muted hover:text-semantic-error cursor-pointer"
+              title={`Disable ${zone.name}`}
+            >
+              ×
+            </button>
+          )}
+        </div>
         <div className="flex items-center gap-[1ch]">
           <select
             value={currentLayoutType}
@@ -99,129 +114,46 @@ export default function ZoneEditor({ zone, blocks, layout }: Props) {
         </div>
       </div>
 
-      {/* Layout-specific config */}
-      {layout && (layout.type === "brackets" || layout.type === "powerline" || layout.type === "powertab") && (
-        <LayoutConfig layout={layout} onChange={handleLayoutConfigChange} />
-      )}
-
-      {blocks.length === 0 ? (
-        <div className="px-[1ch] py-6 text-text-muted text-center">No blocks — add from catalog</div>
-      ) : (
-        <div>
-          {blocks.map((instance, i) => {
+      {/* Block tags */}
+      <div className="px-[1ch] py-[1lh] flex flex-wrap gap-x-[1ch] gap-y-[1lh] relative">
+        {blocks.length === 0 ? (
+          <span className="text-text-muted">No blocks — add from catalog</span>
+        ) : (
+          blocks.map((instance, i) => {
             const def = getBlockById(instance.blockId);
             if (!def) return null;
-            const isExpanded = expandedIndex === i;
-
+            const isOpen = openPopup?.index === i;
             return (
-              <div key={`${instance.blockId}-${i}`}>
-                <div className="flex items-center gap-[1ch] px-[1ch] py-0">
-                  <button
-                    onClick={() => setExpandedIndex(isExpanded ? null : i)}
-                    className={`flex-1 text-left cursor-pointer text-semantic-${def.themeSlot}`}
-                  >
-                    {def.name}
-                    <span className="text-text-muted ml-[1ch]">{instance.style}</span>
-                  </button>
-                  <div className="flex gap-[1ch] text-text-muted">
-                    <button
-                      onClick={() => handleMoveUp(i)}
-                      disabled={i === 0}
-                      className="cursor-pointer hover:text-text-primary disabled:opacity-30 disabled:cursor-default"
-                    >
-                      ↑
-                    </button>
-                    <button
-                      onClick={() => handleMoveDown(i)}
-                      disabled={i >= blocks.length - 1}
-                      className="cursor-pointer hover:text-text-primary disabled:opacity-30 disabled:cursor-default"
-                    >
-                      ↓
-                    </button>
-                    <button onClick={() => handleRemove(i)} className="cursor-pointer hover:text-semantic-error">
-                      ×
-                    </button>
-                  </div>
-                </div>
-                {isExpanded && (
-                  <div className="px-[1ch] py-0 bg-surface-terminal">
-                    <div className="text-text-muted">Style</div>
-                    <div className="flex gap-[1ch]">
-                      {Object.keys(def.styles).map((styleName) => (
-                        <button
-                          key={styleName}
-                          onClick={() => handleSetStyle(i, styleName)}
-                          className={`px-[1ch] py-0 outline-1 cursor-pointer font-mono ${
-                            instance.style === styleName
-                              ? "outline-accent text-accent bg-surface-elevated"
-                              : "outline-border-primary text-text-muted hover:text-text-secondary"
-                          }`}
-                        >
-                          {styleName}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+              <span key={`${instance.blockId}-${i}`} className="relative inline-block">
+                <BlockTag
+                  instance={instance}
+                  def={def}
+                  onGearClick={(e) => {
+                    setOpenPopup(isOpen ? null : { index: i, anchor: e.currentTarget });
+                  }}
+                />
+                {isOpen && openPopup && (
+                  <BlockPopup
+                    def={def}
+                    activeStyle={instance.style}
+                    index={i}
+                    totalInZone={blocks.length}
+                    enabledZones={enabledZones}
+                    currentZoneId={zone.id}
+                    anchorEl={openPopup.anchor}
+                    onSetStyle={(style) => handleSetStyle(i, style)}
+                    onMoveLeft={() => handleMoveLeft(i, openPopup.anchor)}
+                    onMoveRight={() => handleMoveRight(i, openPopup.anchor)}
+                    onMoveToZone={(toZoneId) => handleMoveToZone(i, toZoneId)}
+                    onRemove={() => handleRemove(i)}
+                    onClose={() => setOpenPopup(null)}
+                  />
                 )}
-              </div>
+              </span>
             );
-          })}
-        </div>
-      )}
+          })
+        )}
+      </div>
     </div>
   );
-}
-
-function LayoutConfig({ layout, onChange }: { layout: ZoneLayout; onChange: (l: ZoneLayout) => void }) {
-  if (layout.type === "brackets") {
-    return (
-      <div className="px-[1ch] py-0 bg-surface-terminal flex gap-[2ch] text-text-muted border-b border-border-muted">
-        <label className="flex items-center gap-[1ch]">
-          open
-          <input
-            type="text"
-            value={layout.config.open}
-            onChange={(e) => onChange({ ...layout, config: { ...layout.config, open: e.target.value } })}
-            className="w-[3ch] bg-surface-secondary outline-1 outline-border-primary text-text-primary px-[1ch] py-0 font-mono focus:outline-accent"
-          />
-        </label>
-        <label className="flex items-center gap-[1ch]">
-          close
-          <input
-            type="text"
-            value={layout.config.close}
-            onChange={(e) => onChange({ ...layout, config: { ...layout.config, close: e.target.value } })}
-            className="w-[3ch] bg-surface-secondary outline-1 outline-border-primary text-text-primary px-[1ch] py-0 font-mono focus:outline-accent"
-          />
-        </label>
-      </div>
-    );
-  }
-
-  if (layout.type === "powerline" || layout.type === "powertab") {
-    return (
-      <div className="px-[1ch] py-0 bg-surface-terminal flex gap-[2ch] text-text-muted border-b border-border-muted">
-        <label className="flex items-center gap-[1ch]">
-          sep
-          <input
-            type="text"
-            value={layout.config.separator}
-            onChange={(e) => onChange({ ...layout, config: { ...layout.config, separator: e.target.value } })}
-            className="w-[3ch] bg-surface-secondary outline-1 outline-border-primary text-text-primary px-[1ch] py-0 font-mono focus:outline-accent"
-          />
-        </label>
-        <label className="flex items-center gap-[1ch]">
-          end
-          <input
-            type="text"
-            value={layout.config.terminator}
-            onChange={(e) => onChange({ ...layout, config: { ...layout.config, terminator: e.target.value } })}
-            className="w-[3ch] bg-surface-secondary outline-1 outline-border-primary text-text-primary px-[1ch] py-0 font-mono focus:outline-accent"
-          />
-        </label>
-      </div>
-    );
-  }
-
-  return null;
 }

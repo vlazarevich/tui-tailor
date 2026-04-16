@@ -6,7 +6,8 @@ export const SURFACES: Surface[] = [
     name: "Terminal Prompt",
     zones: [
       { id: "left-prompt", name: "Left Prompt" },
-      { id: "right-prompt", name: "Right Prompt" },
+      { id: "right-prompt", name: "Right Prompt", optional: true },
+      { id: "continuation-prompt", name: "Continuation Prompt", optional: true },
     ],
     globalOptions: [
       { id: "multiline", name: "Multiline", type: "boolean", defaultValue: false },

@@ -1,11 +1,11 @@
 ## ADDED Requirements
 
 ### Requirement: App shell layout
-The system SHALL render a structured layout with these regions: a top toolbar, a block catalog panel, a canvas area, and a bottom status bar. The layout SHALL fill the viewport height.
+The system SHALL render a structured layout with these regions: a top toolbar, a block catalog panel (left column, fixed width), a center column split vertically between zone editors (top) and a live preview pane (bottom), a full-height export panel (right column, fixed width), and a bottom status bar. The layout SHALL fill the viewport height. The center column's two sections SHALL each independently scroll.
 
 #### Scenario: Initial render
 - **WHEN** the app loads
-- **THEN** the toolbar, block catalog, canvas, and status bar are all visible without scrolling on a standard viewport (1280x720 or larger)
+- **THEN** the toolbar, block catalog, zone editors, preview pane, export panel, and status bar are all visible without scrolling on a standard viewport (1280x720 or larger)
 
 ### Requirement: Surface switcher
 The system SHALL display a surface switcher in the toolbar that lists all available surfaces (e.g., "Terminal Prompt", "Vim Statusline"). The user SHALL be able to switch between surfaces. Switching surfaces SHALL load that surface's saved configuration from persistence (or defaults if none saved).
@@ -60,14 +60,6 @@ The system SHALL render the canvas as a set of named zones defined by the active
 - **WHEN** the user moves a block to a different position within the same zone
 - **THEN** the block list reflects the new order
 - **AND** the state is auto-saved
-
-### Requirement: Block inline editor
-The system SHALL allow the user to select a block on the canvas and edit its style preset inline. The available style presets (e.g., zen, minimal, extended) SHALL be defined by the block's definition.
-
-#### Scenario: Select and change style preset
-- **WHEN** the user clicks a block on the canvas
-- **THEN** the block expands to show its available style presets
-- **AND** the user can select a different preset
 
 ### Requirement: Status bar
 The system SHALL render a fixed bottom status bar displaying: the active surface name, the count of active blocks, and the active theme name.

@@ -176,7 +176,7 @@ const blocks: BlockDefinition[] = [
     surfaces: ["terminal-prompt"],
     elements: {
       version: { source: "nodeVersion", role: "content" },
-      icon: { value: "", role: "icon" },
+      icon: { value: "node", role: "icon" },
       connector: { value: "via", role: "connector" },
     },
     styles: {
@@ -194,7 +194,7 @@ const blocks: BlockDefinition[] = [
     surfaces: ["terminal-prompt"],
     elements: {
       version: { source: "pythonVersion", role: "content" },
-      icon: { value: "", role: "icon" },
+      icon: { value: "py", role: "icon" },
       connector: { value: "via", role: "connector" },
     },
     styles: {

@@ -94,6 +94,7 @@ export interface ScenarioData {
   time?: string;
   jobCount?: number;
   cmdDuration?: string;
+  multilineCommand?: boolean;
 }
 
 export interface BlockInstance {
@@ -104,6 +105,7 @@ export interface BlockInstance {
 export interface ZoneDefinition {
   id: string;
   name: string;
+  optional?: boolean;
 }
 
 export interface GlobalOptionDefinition {
@@ -124,6 +126,7 @@ export interface Surface {
 export interface ZoneConfig {
   blocks: BlockInstance[];
   layout?: ZoneLayout;
+  enabled?: boolean;
 }
 
 export interface SurfaceConfig {
