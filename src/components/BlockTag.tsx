@@ -8,7 +8,7 @@ interface Props {
 
 export default function BlockTag({ instance, def, onGearClick }: Props) {
   return (
-    <span className="inline-flex items-center gap-[0.5ch] bg-surface-elevated px-[1ch] py-0 leading-normal">
+    <span className="inline-flex items-center gap-[1ch] bg-surface-elevated px-[1ch] py-0 leading-normal">
       <button
         onClick={onGearClick}
         className="text-text-muted hover:text-text-secondary cursor-pointer"
@@ -17,7 +17,7 @@ export default function BlockTag({ instance, def, onGearClick }: Props) {
         ⚙
       </button>
       <span style={{ color: `var(--tt-color-${def.themeSlot})` }}>{def.name}</span>
-      <span className="text-text-muted">· {instance.style}</span>
+      <span className="text-text-muted">{instance.style}</span>
     </span>
   );
 }

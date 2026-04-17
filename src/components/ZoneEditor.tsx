@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { BlockInstance, ZoneDefinition, ZoneLayout, ZoneLayoutType } from "../lib/types";
+import type { BlockInstance, ZoneDefinition, ZoneLayoutType } from "../lib/types";
 import { getBlockById } from "../lib/registry";
 import { useComposerDispatch } from "../lib/composerContext";
 import BlockTag from "./BlockTag";
@@ -13,25 +13,10 @@ const LAYOUT_OPTIONS: { type: ZoneLayoutType; label: string }[] = [
   { type: "powertab", label: "Powertab" },
 ];
 
-function defaultLayoutConfig(type: ZoneLayoutType): ZoneLayout {
-  switch (type) {
-    case "plain":
-      return { type: "plain", config: { gap: " " } };
-    case "flow":
-      return { type: "flow", config: { gap: " " } };
-    case "brackets":
-      return { type: "brackets", config: { open: "[", close: "]", padding: "", gap: "─" } };
-    case "powerline":
-      return { type: "powerline", config: { separator: ">", terminator: ">" } };
-    case "powertab":
-      return { type: "powertab", config: { separator: ">", terminator: ">" } };
-  }
-}
-
 interface Props {
   zone: ZoneDefinition;
   blocks: BlockInstance[];
-  layout?: ZoneLayout;
+  layout?: ZoneLayoutType;
   enabledZones: ZoneDefinition[];
   onDisable?: () => void;
 }
@@ -40,7 +25,7 @@ export default function ZoneEditor({ zone, blocks, layout, enabledZones, onDisab
   const dispatch = useComposerDispatch();
   const [openPopup, setOpenPopup] = useState<{ index: number; anchor: HTMLButtonElement } | null>(null);
 
-  const currentLayoutType = layout?.type ?? "plain";
+  const currentLayoutType = layout ?? "plain";
 
   function handleSetStyle(index: number, style: string) {
     dispatch({ type: "SET_STYLE", zoneId: zone.id, index, style });
@@ -69,11 +54,11 @@ export default function ZoneEditor({ zone, blocks, layout, enabledZones, onDisab
   }
 
   function handleLayoutChange(type: ZoneLayoutType) {
-    dispatch({ type: "SET_ZONE_LAYOUT", zoneId: zone.id, layout: defaultLayoutConfig(type) });
+    dispatch({ type: "SET_ZONE_LAYOUT", zoneId: zone.id, layout: type });
   }
 
   function handleApplyToAll() {
-    dispatch({ type: "SET_ALL_ZONES_LAYOUT", layout: defaultLayoutConfig(currentLayoutType) });
+    dispatch({ type: "SET_ALL_ZONES_LAYOUT", layout: currentLayoutType });
   }
 
   return (

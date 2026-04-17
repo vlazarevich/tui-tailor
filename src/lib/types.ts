@@ -120,12 +120,12 @@ export interface Surface {
   name: string;
   zones: ZoneDefinition[];
   globalOptions: GlobalOptionDefinition[];
-  defaultLayout: ZoneLayout;
+  defaultLayout: ZoneLayoutType;
 }
 
 export interface ZoneConfig {
   blocks: BlockInstance[];
-  layout?: ZoneLayout;
+  layout?: ZoneLayoutType;
   enabled?: boolean;
 }
 

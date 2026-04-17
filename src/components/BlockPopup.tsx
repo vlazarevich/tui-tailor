@@ -56,10 +56,10 @@ export default function BlockPopup({
   return (
     <div
       ref={popupRef}
-      className="absolute z-50 bg-surface-secondary outline-1 outline-border-primary shadow-lg min-w-[16ch] mt-1"
+      className="absolute z-50 bg-surface-secondary outline-1 outline-border-primary shadow-lg min-w-[16ch]"
     >
       {/* Style selector */}
-      <div className="px-[1ch] py-0 text-text-muted border-b border-border-muted">Style</div>
+      <div className="px-[1ch] py-0 text-text-muted outline-1 outline-border-muted">Style</div>
       <div className="px-[1ch] py-0 flex flex-col">
         {styleNames.map((s) => (
           <button
@@ -76,7 +76,7 @@ export default function BlockPopup({
       </div>
 
       {/* Reorder */}
-      <div className="px-[1ch] py-0 border-t border-border-muted flex items-center gap-[1ch]">
+      <div className="px-[1ch] py-0 outline-1 outline-border-muted flex items-center gap-[1ch]">
         <button
           onClick={onMoveLeft}
           disabled={index === 0}
@@ -105,7 +105,7 @@ export default function BlockPopup({
 
       {/* Zone transfer — only when other enabled zones exist */}
       {otherZones.length > 0 && (
-        <div className="border-t border-border-muted">
+        <div>
           <div className="px-[1ch] py-0 text-text-muted">Move to →</div>
           {otherZones.map((z) => (
             <button

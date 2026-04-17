@@ -1,4 +1,22 @@
-import type { SurfaceConfig } from "./types";
+import type { SurfaceConfig, ZoneLayoutType } from "./types";
+
+const VALID_LAYOUT_TYPES = new Set<ZoneLayoutType>(["plain", "flow", "brackets", "powerline", "powertab"]);
+
+function migrateZones(zones: Record<string, unknown>): void {
+  for (const [zoneId, value] of Object.entries(zones)) {
+    const zone = value as Record<string, unknown>;
+    // Migrate old format: zones were BlockInstance[], now ZoneConfig
+    if (Array.isArray(zone)) {
+      zones[zoneId] = { blocks: zone };
+      continue;
+    }
+    // Migrate old format: layout was ZoneLayout object, now ZoneLayoutType string
+    if (zone.layout && typeof zone.layout === "object") {
+      const type = (zone.layout as Record<string, unknown>).type;
+      zone.layout = VALID_LAYOUT_TYPES.has(type as ZoneLayoutType) ? type : undefined;
+    }
+  }
+}
 import { DEFAULT_THEME_ID } from "./themes";
 import { DEFAULT_SURFACE_ID } from "./surfaces";
 import { createDefaultConfig, type ComposerState } from "./composerContext";
@@ -25,13 +43,7 @@ export function loadSurfaceConfig(surfaceId: string): SurfaceConfig | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     // Migrate old format: zones were Record<string, BlockInstance[]>, now Record<string, ZoneConfig>
-    if (parsed.zones) {
-      for (const [zoneId, value] of Object.entries(parsed.zones)) {
-        if (Array.isArray(value)) {
-          parsed.zones[zoneId] = { blocks: value };
-        }
-      }
-    }
+    if (parsed.zones) migrateZones(parsed.zones);
     return parsed;
   } catch {
     return null;
@@ -100,12 +112,7 @@ export function decodeConfig(encoded: string): SurfaceConfig | null {
     const json = atob(encoded);
     const parsed = JSON.parse(json);
     if (!parsed.surfaceId || !parsed.zones) return null;
-    // Migrate old format
-    for (const [zoneId, value] of Object.entries(parsed.zones)) {
-      if (Array.isArray(value)) {
-        parsed.zones[zoneId] = { blocks: value };
-      }
-    }
+    migrateZones(parsed.zones);
     return parsed as SurfaceConfig;
   } catch {
     return null;

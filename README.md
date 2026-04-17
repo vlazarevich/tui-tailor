@@ -1,73 +1,72 @@
-# React + TypeScript + Vite
+# tui-tailor
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A visual composer for TUI surfaces — terminal prompts, statuslines, tab bars. Pick a surface, compose blocks into zones, preview the result, and export to your tool of choice.
 
-Currently, two official plugins are available:
+No install. No backend. Runs entirely in the browser.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## What it does
 
-## React Compiler
+- **Surface-first model** — customize by what you're styling (terminal prompt, tmux bar, neovim statusline), not by which tool you use
+- **Block catalog** — drag blocks (git branch, cwd, node version, etc.) into zones; each block has style presets (zen / minimal / extended)
+- **Live preview** — see your prompt rendered across scenarios (home dir, git repo, node project, error state)
+- **Theme system** — semantic color slots (vcs, path, host, …) with presets: Catppuccin, Tokyo Night, Dracula, and more
+- **Export** — generates config for Bash PS1, Starship, Oh My Posh, lualine, and others; recommends the lowest-cost target per your block set
+- **Persistence** — auto-saves to localStorage; share configs as base64 strings
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Stack
 
-## Expanding the ESLint configuration
+- React 19 + TypeScript
+- Tailwind CSS v4
+- Vite
+- Static deployment (GitHub Pages)
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Development
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+pnpm install
+pnpm dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+pnpm build    # type-check + bundle
+pnpm preview  # serve the production build locally
 ```
+
+## Architecture
+
+```
+src/
+  lib/
+    types.ts        # Surface, Zone, Block, Theme types
+    registry.ts     # Block registry — catalog of all available blocks
+    surfaces.ts     # Surface definitions (zones, global options)
+    themes.ts       # Theme presets and semantic slot mapping
+    renderer.ts     # Renders a composer state to a preview string
+    scenarios.ts    # Preview scenarios (git repo, error, etc.)
+    persistence.ts  # localStorage save/load + base64 share
+    composerContext.tsx  # React context for global composer state
+  components/
+    AppShell.tsx    # Top-level layout
+    SurfaceSwitcher.tsx
+    Canvas.tsx      # Zone-based drag-and-drop canvas
+    ZoneEditor.tsx
+    BlockCatalog.tsx
+    BlockPopup.tsx  # Block detail / style preset picker
+    PreviewPane.tsx # Live preview with scenario switcher
+    ThemePicker.tsx
+    ExportPanel.tsx
+    ConfigShare.tsx
+    StatusBar.tsx
+```
+
+The primary axis is the **surface** (what you're customizing). Each surface declares its zones and global options. Blocks declare which surfaces they're compatible with and carry an integer cost per export target — the app recommends the lowest-cost export path for your current block set.
+
+## Roadmap
+
+| Milestone | Status |
+|-----------|--------|
+| M1 — Foundation: design system, app shell, block registry, persistence | complete |
+| M2 — Terminal Prompt: block catalog, live preview, Bash PS1 / PowerShell export | complete |
+| M3 — Starship & Oh My Posh export | planned |
+| M4 — Additional surfaces (neovim, tmux, Claude Code statusline, Zellij) | planned |
+| M5 — Polish: keyboard nav, command palette, more themes and blocks | planned |

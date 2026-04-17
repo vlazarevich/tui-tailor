@@ -1,5 +1,5 @@
 import { useComposerState, useActiveConfig } from "../lib/composerContext";
-import { getSurfaceById } from "../lib/surfaces";
+import { getSurfaceById, getLayoutForType } from "../lib/surfaces";
 import { getScenariosBySurfaceId } from "../lib/scenarios";
 import { getThemeById } from "../lib/themes";
 import { getBlockById } from "../lib/registry";
@@ -53,7 +53,7 @@ export default function PreviewPane() {
   const defaultLayout = surface.defaultLayout;
 
   function getZoneLayout(zoneId: string) {
-    return config.zones[zoneId]?.layout ?? defaultLayout;
+    return getLayoutForType(config.zones[zoneId]?.layout ?? defaultLayout);
   }
 
   function isZoneEnabled(zoneId: string): boolean {

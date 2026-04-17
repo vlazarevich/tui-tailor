@@ -55,7 +55,7 @@ The system SHALL use a monospace font stack for all text. Visual hierarchy SHALL
 
 ### Requirement: Terminal-grid spacing system
 
-All spacing SHALL align to a terminal character grid. Horizontal spacing uses `ch` units so monospaced text aligns vertically across rows. Vertical spacing uses multiples of the line-height (24px) to simulate terminal row boundaries.
+All spacing SHALL align to a terminal character grid. Horizontal spacing uses `ch` units so monospaced text aligns vertically across rows. Vertical spacing uses `lh` units (multiples of the line-height) to simulate terminal row boundaries. Permitted vertical values are `0` or multiples of `0.5lh`.
 
 #### Scenario: Horizontal padding on inner content
 
@@ -65,17 +65,17 @@ All spacing SHALL align to a terminal character grid. Horizontal spacing uses `c
 #### Scenario: Vertical padding — single-row element
 
 - **WHEN** an element represents a single terminal row (status bar, section headers, inline items, buttons, inputs)
-- **THEN** it has `py-0` (no vertical padding) and its height equals one line-height (24px)
+- **THEN** it has `py-0` (no vertical padding) and its height equals one line-height
 
-#### Scenario: Vertical padding — border-row spacing
+#### Scenario: Vertical padding — half-row spacing
 
-- **WHEN** a structural border separates content areas (toolbar top/bottom)
-- **THEN** padding is half the line-height (12px / `py-3`) so the border visually occupies its own terminal row
+- **WHEN** an element needs vertical breathing room without occupying a full terminal row
+- **THEN** padding is `0.5lh` (e.g., `py-[0.5lh]`) so the space is a precise half-row
 
 #### Scenario: Vertical gaps between sections
 
 - **WHEN** vertical space separates distinct sections or panels
-- **THEN** the gap is one full line-height (24px / `gap-6`, `my-6`, `py-6`)
+- **THEN** the gap is one full line-height (`gap-[1lh]`, `my-[1lh]`, `py-[1lh]`)
 
 ### Requirement: Line height consistency
 

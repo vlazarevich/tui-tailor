@@ -1,5 +1,5 @@
 import { createContext, useContext, useReducer, type ReactNode, type Dispatch } from "react";
-import type { SurfaceConfig, ZoneConfig, ZoneLayout } from "./types";
+import type { SurfaceConfig, ZoneConfig, ZoneLayoutType } from "./types";
 import { getSurfaceById } from "./surfaces";
 import { DEFAULT_THEME_ID } from "./themes";
 
@@ -14,8 +14,8 @@ type Action =
   | { type: "REORDER_BLOCK"; zoneId: string; fromIndex: number; toIndex: number }
   | { type: "MOVE_BLOCK_TO_ZONE"; fromZoneId: string; index: number; toZoneId: string }
   | { type: "SET_STYLE"; zoneId: string; index: number; style: string }
-  | { type: "SET_ZONE_LAYOUT"; zoneId: string; layout: ZoneLayout }
-  | { type: "SET_ALL_ZONES_LAYOUT"; layout: ZoneLayout }
+  | { type: "SET_ZONE_LAYOUT"; zoneId: string; layout: ZoneLayoutType }
+  | { type: "SET_ALL_ZONES_LAYOUT"; layout: ZoneLayoutType }
   | { type: "SET_THEME"; themeId: string }
   | { type: "SWITCH_SURFACE"; surfaceId: string }
   | { type: "SET_GLOBAL_OPTION"; key: string; value: string | boolean }

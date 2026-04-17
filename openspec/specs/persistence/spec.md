@@ -9,7 +9,7 @@ The system SHALL automatically save the active surface's configuration to localS
 
 #### Scenario: Config is restored on surface switch
 - **WHEN** the user switches to a surface that has a saved configuration in localStorage
-- **THEN** the canvas loads the saved zone layouts, block selections, style choices, global options, and zone enabled/disabled state
+- **THEN** the canvas loads the saved zone layout types, block selections, style choices, global options, and zone enabled/disabled state
 
 #### Scenario: Config is restored on page reload
 - **WHEN** the user reloads the page
@@ -29,8 +29,22 @@ The system SHALL save the selected theme ID to localStorage (`tui-tailor:theme`)
 - **WHEN** the user selects the Tokyo Night theme and reloads the page
 - **THEN** the Tokyo Night theme is applied on load
 
+### Requirement: ZoneConfig.layout as layout type reference
+`ZoneConfig.layout` SHALL store only a `ZoneLayoutType` string (e.g., `"plain"`, `"brackets"`) — not a full layout config object. Canonical layout configurations (separators, padding, gap characters) are globally defined in the app and are not user-configurable. Only the layout type reference is persisted.
+
+#### Scenario: Layout type is saved, not config object
+- **WHEN** the user selects "brackets" as the zone layout
+- **THEN** `ZoneConfig.layout` stores `"brackets"` and the canonical brackets config is resolved at render time
+
+### Requirement: ZoneConfig.layout migration from full object
+When loading a saved surface config where `ZoneConfig.layout` is a full object (old format), the system SHALL extract the `type` field and discard the config sub-object.
+
+#### Scenario: Old format config loaded
+- **WHEN** a config saved before this change is loaded from localStorage or imported via base64 string
+- **THEN** the layout field is migrated to the type string and the canvas renders correctly
+
 ### Requirement: Base64 config string export
-The system SHALL provide an action to serialize the active surface's configuration into a base64-encoded string. The string SHALL encode: surface ID, zone block lists (block IDs and style choices), theme ID, and global options.
+The system SHALL provide an action to serialize the active surface's configuration into a base64-encoded string. The string SHALL encode: surface ID, zone layout type references (not full layout configs), zone block lists (block IDs and style choices), theme ID, and global options.
 
 #### Scenario: Export config string
 - **WHEN** the user triggers the config string export
