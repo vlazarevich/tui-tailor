@@ -1,4 +1,4 @@
-import { THEMES } from "../lib/themes";
+import { THEMES } from "../lib/data/themes";
 import { useActiveConfig, useComposerDispatch } from "../lib/composerContext";
 
 export default function ThemePicker() {

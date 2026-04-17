@@ -10,7 +10,7 @@ import type {
   PowerlineConfig,
   PowertabConfig,
 } from "./types";
-import type { ThemeDefinition } from "./themes";
+import type { ThemeDefinition } from "./data/themes";
 
 // ---------------------------------------------------------------------------
 // Stage 1: EMIT — resolve block elements against scenario data

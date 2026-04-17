@@ -1,4 +1,4 @@
-import type { ScenarioData } from "./types";
+import type { ScenarioData } from "../types";
 
 export interface ScenarioPreset {
   id: string;

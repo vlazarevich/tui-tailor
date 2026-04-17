@@ -1,7 +1,7 @@
-import { createContext, useContext, useReducer, type ReactNode, type Dispatch } from "react";
+import { createContext, useContext, type Dispatch } from "react";
 import type { SurfaceConfig, ZoneConfig, ZoneLayoutType } from "./types";
-import { getSurfaceById } from "./surfaces";
-import { DEFAULT_THEME_ID } from "./themes";
+import { getSurfaceById } from "./data/surfaces";
+import { DEFAULT_THEME_ID } from "./data/themes";
 
 export interface ComposerState {
   activeSurfaceId: string;
@@ -44,7 +44,7 @@ export function createDefaultConfig(surfaceId: string): SurfaceConfig {
   return { surfaceId, zones, globalOptions, themeId: DEFAULT_THEME_ID };
 }
 
-function composerReducer(state: ComposerState, action: Action): ComposerState {
+export function composerReducer(state: ComposerState, action: Action): ComposerState {
   const config = getActiveConfig(state);
 
   function updateConfig(patch: Partial<SurfaceConfig>): ComposerState {
@@ -153,17 +153,8 @@ function composerReducer(state: ComposerState, action: Action): ComposerState {
   }
 }
 
-const ComposerStateContext = createContext<ComposerState | null>(null);
-const ComposerDispatchContext = createContext<Dispatch<Action> | null>(null);
-
-export function ComposerProvider({ initialState, children }: { initialState: ComposerState; children: ReactNode }) {
-  const [state, dispatch] = useReducer(composerReducer, initialState);
-  return (
-    <ComposerStateContext value={state}>
-      <ComposerDispatchContext value={dispatch}>{children}</ComposerDispatchContext>
-    </ComposerStateContext>
-  );
-}
+export const ComposerStateContext = createContext<ComposerState | null>(null);
+export const ComposerDispatchContext = createContext<Dispatch<Action> | null>(null);
 
 export function useComposerState(): ComposerState {
   const ctx = useContext(ComposerStateContext);
@@ -181,3 +172,4 @@ export function useActiveConfig(): SurfaceConfig {
   const state = useComposerState();
   return state.configs[state.activeSurfaceId] ?? createDefaultConfig(state.activeSurfaceId);
 }
+

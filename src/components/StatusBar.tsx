@@ -1,6 +1,6 @@
 import { useComposerState, useActiveConfig } from "../lib/composerContext";
-import { getSurfaceById } from "../lib/surfaces";
-import { getThemeById } from "../lib/themes";
+import { getSurfaceById } from "../lib/data/surfaces";
+import { getThemeById } from "../lib/data/themes";
 
 export default function StatusBar() {
   const state = useComposerState();

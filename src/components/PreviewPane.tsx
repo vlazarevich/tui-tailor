@@ -1,8 +1,8 @@
 import { useComposerState, useActiveConfig } from "../lib/composerContext";
-import { getSurfaceById, getLayoutForType } from "../lib/surfaces";
-import { getScenariosBySurfaceId } from "../lib/scenarios";
-import { getThemeById } from "../lib/themes";
-import { getBlockById } from "../lib/registry";
+import { getSurfaceById, getLayoutForType } from "../lib/data/surfaces";
+import { getScenariosBySurfaceId } from "../lib/data/scenarios";
+import { getThemeById } from "../lib/data/themes";
+import { getBlockById } from "../lib/data/blocks";
 import { renderZone } from "../lib/renderer";
 import type { PaintedSpan } from "../lib/renderer";
 import type { ZoneConfig } from "../lib/types";

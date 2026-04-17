@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useComposerState, useComposerDispatch } from "../lib/composerContext";
-import { getBlocksByCategoryForSurface, getBlockById } from "../lib/registry";
-import { getSurfaceById } from "../lib/surfaces";
+import { getBlocksByCategoryForSurface, getBlockById } from "../lib/data/blocks";
+import { getSurfaceById } from "../lib/data/surfaces";
 
 const CATEGORY_LABELS: Record<string, string> = {
   essential: "Essential",

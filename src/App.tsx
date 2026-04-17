@@ -1,4 +1,4 @@
-import { ComposerProvider } from './lib/composerContext'
+import { ComposerProvider } from './lib/ComposerProvider'
 import { loadInitialState } from './lib/persistence'
 import AppShell from './components/AppShell'
 

@@ -1,4 +1,4 @@
-import type { BlockDefinition } from "./types";
+import type { BlockDefinition } from "../types";
 
 const blocks: BlockDefinition[] = [
   {
@@ -18,6 +18,7 @@ const blocks: BlockDefinition[] = [
     },
     themeSlot: "user",
     defaultStyle: "minimal",
+    exportCosts: { "bash-ps1": 0, "powershell-prompt": 0 },
   },
   {
     id: "host",
@@ -36,6 +37,7 @@ const blocks: BlockDefinition[] = [
     },
     themeSlot: "host",
     defaultStyle: "minimal",
+    exportCosts: { "bash-ps1": 0, "powershell-prompt": 0 },
   },
   {
     id: "cwd",
@@ -54,6 +56,7 @@ const blocks: BlockDefinition[] = [
     },
     themeSlot: "path",
     defaultStyle: "minimal",
+    exportCosts: { "bash-ps1": 0, "powershell-prompt": 0 },
   },
   {
     id: "git-branch",
@@ -75,6 +78,7 @@ const blocks: BlockDefinition[] = [
     },
     themeSlot: "vcs",
     defaultStyle: "minimal",
+    exportCosts: { "bash-ps1": 0, "powershell-prompt": 0 },
   },
   {
     id: "git-status",
@@ -95,6 +99,7 @@ const blocks: BlockDefinition[] = [
     },
     themeSlot: "vcs",
     defaultStyle: "minimal",
+    exportCosts: { "bash-ps1": 0, "powershell-prompt": 0 },
   },
   {
     id: "exit-code",
@@ -113,6 +118,7 @@ const blocks: BlockDefinition[] = [
     },
     themeSlot: "error",
     defaultStyle: "minimal",
+    exportCosts: { "bash-ps1": 0, "powershell-prompt": 0 },
   },
   {
     id: "time",
@@ -131,6 +137,7 @@ const blocks: BlockDefinition[] = [
     },
     themeSlot: "info",
     defaultStyle: "minimal",
+    exportCosts: { "bash-ps1": 0, "powershell-prompt": 0 },
   },
   {
     id: "jobs",
@@ -149,6 +156,7 @@ const blocks: BlockDefinition[] = [
     },
     themeSlot: "info",
     defaultStyle: "minimal",
+    exportCosts: { "bash-ps1": 0, "powershell-prompt": 0 },
   },
   {
     id: "cmd-duration",
@@ -167,6 +175,7 @@ const blocks: BlockDefinition[] = [
     },
     themeSlot: "info",
     defaultStyle: "minimal",
+    exportCosts: { "bash-ps1": 0, "powershell-prompt": 0 },
   },
   // Environment blocks
   {
@@ -186,6 +195,7 @@ const blocks: BlockDefinition[] = [
     },
     themeSlot: "info",
     defaultStyle: "minimal",
+    exportCosts: { "bash-ps1": 0, "powershell-prompt": 0 },
   },
   {
     id: "python-version",
@@ -204,6 +214,7 @@ const blocks: BlockDefinition[] = [
     },
     themeSlot: "info",
     defaultStyle: "minimal",
+    exportCosts: { "bash-ps1": 0, "powershell-prompt": 0 },
   },
   {
     id: "ruby-version",
@@ -222,6 +233,7 @@ const blocks: BlockDefinition[] = [
     },
     themeSlot: "info",
     defaultStyle: "minimal",
+    exportCosts: { "bash-ps1": 0, "powershell-prompt": 0 },
   },
   {
     id: "golang-version",
@@ -240,6 +252,7 @@ const blocks: BlockDefinition[] = [
     },
     themeSlot: "info",
     defaultStyle: "minimal",
+    exportCosts: { "bash-ps1": 0, "powershell-prompt": 0 },
   },
   {
     id: "rust-version",
@@ -258,6 +271,7 @@ const blocks: BlockDefinition[] = [
     },
     themeSlot: "info",
     defaultStyle: "minimal",
+    exportCosts: { "bash-ps1": 0, "powershell-prompt": 0 },
   },
   {
     id: "java-version",
@@ -276,6 +290,7 @@ const blocks: BlockDefinition[] = [
     },
     themeSlot: "info",
     defaultStyle: "minimal",
+    exportCosts: { "bash-ps1": 0, "powershell-prompt": 0 },
   },
   // Cloud blocks
   {
@@ -295,6 +310,7 @@ const blocks: BlockDefinition[] = [
     },
     themeSlot: "warning",
     defaultStyle: "minimal",
+    exportCosts: { "bash-ps1": 0, "powershell-prompt": 0 },
   },
   {
     id: "azure-subscription",
@@ -313,6 +329,7 @@ const blocks: BlockDefinition[] = [
     },
     themeSlot: "info",
     defaultStyle: "minimal",
+    exportCosts: { "bash-ps1": 0, "powershell-prompt": 0 },
   },
   {
     id: "gcp-project",
@@ -331,6 +348,7 @@ const blocks: BlockDefinition[] = [
     },
     themeSlot: "info",
     defaultStyle: "minimal",
+    exportCosts: { "bash-ps1": 0, "powershell-prompt": 0 },
   },
   {
     id: "kubernetes-context",
@@ -349,6 +367,7 @@ const blocks: BlockDefinition[] = [
     },
     themeSlot: "info",
     defaultStyle: "minimal",
+    exportCosts: { "bash-ps1": 0, "powershell-prompt": 0 },
   },
 ];
 

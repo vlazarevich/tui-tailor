@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { useComposerState, useActiveConfig } from "../lib/composerContext";
 import { saveSurfaceConfig, saveThemeId, saveActiveSurface } from "../lib/persistence";
 import { applyTheme } from "../lib/applyTheme";
-import { getThemeById } from "../lib/themes";
+import { getThemeById } from "../lib/data/themes";
 import SurfaceSwitcher from "./SurfaceSwitcher";
 import ThemePicker from "./ThemePicker";
 import BlockCatalog from "./BlockCatalog";

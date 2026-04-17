@@ -17,8 +17,8 @@ function migrateZones(zones: Record<string, unknown>): void {
     }
   }
 }
-import { DEFAULT_THEME_ID } from "./themes";
-import { DEFAULT_SURFACE_ID } from "./surfaces";
+import { DEFAULT_THEME_ID } from "./data/themes";
+import { DEFAULT_SURFACE_ID } from "./data/surfaces";
 import { createDefaultConfig, type ComposerState } from "./composerContext";
 
 const STORAGE_PREFIX = "tui-tailor:";

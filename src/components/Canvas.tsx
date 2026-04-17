@@ -1,5 +1,5 @@
 import { useComposerState, useActiveConfig, useComposerDispatch } from "../lib/composerContext";
-import { getSurfaceById } from "../lib/surfaces";
+import { getSurfaceById } from "../lib/data/surfaces";
 import ZoneEditor from "./ZoneEditor";
 import type { ZoneDefinition } from "../lib/types";
 

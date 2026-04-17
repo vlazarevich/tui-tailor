@@ -1,4 +1,4 @@
-import { SURFACES } from "../lib/surfaces";
+import { SURFACES } from "../lib/data/surfaces";
 import { useComposerState, useComposerDispatch } from "../lib/composerContext";
 
 export default function SurfaceSwitcher() {

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { BlockInstance, ZoneDefinition, ZoneLayoutType } from "../lib/types";
-import { getBlockById } from "../lib/registry";
+import { getBlockById } from "../lib/data/blocks";
 import { useComposerDispatch } from "../lib/composerContext";
 import BlockTag from "./BlockTag";
 import BlockPopup from "./BlockPopup";

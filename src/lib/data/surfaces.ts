@@ -1,4 +1,4 @@
-import type { Surface, ZoneLayout, ZoneLayoutType } from "./types";
+import type { Surface, ZoneLayout, ZoneLayoutType } from "../types";
 
 export const LAYOUT_CONFIGS: Record<ZoneLayoutType, ZoneLayout> = {
   plain:     { type: "plain",     config: { gap: " " } },

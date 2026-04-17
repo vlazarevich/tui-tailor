@@ -17,6 +17,7 @@ export interface BlockDefinition {
   styles: Record<string, string>;
   themeSlot: string;
   defaultStyle: string;
+  exportCosts: Record<string, number>;
 }
 
 export interface ResolvedElement {
@@ -142,4 +143,11 @@ export interface ExportTarget {
   id: ExportTargetId;
   name: string;
   surfaceId: string;
+  blockCosts: Record<string, number>;
+  zoneCosts: Record<string, number>;
+}
+
+export interface CodeSection {
+  label: string;
+  code: string;
 }
