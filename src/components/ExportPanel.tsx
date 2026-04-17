@@ -35,7 +35,7 @@ export default function ExportPanel() {
         <div className="px-[1ch] py-0 flex flex-col">
           <button
             onClick={handleExport}
-            className="px-[1ch] py-0 bg-surface-elevated outline-1 outline-border-primary text-text-secondary cursor-pointer hover:text-text-primary font-mono my-6"
+            className="px-[1ch] py-0 bg-surface-elevated outline-1 outline-border-primary text-text-secondary cursor-pointer hover:text-text-primary font-mono my-[1lh]"
           >
             {copied ? "Copied!" : "Copy config string"}
           </button>
@@ -56,13 +56,13 @@ export default function ExportPanel() {
           >
             Load
           </button>
-          {error && <div className="text-semantic-error mb-6">{error}</div>}
+          {error && <div className="text-semantic-error mb-[1lh]">{error}</div>}
         </div>
       </div>
 
-      <div className="mx-[2ch] mt-6 outline-1 outline-border-primary">
+      <div className="mx-[2ch] mt-[1lh] outline-1 outline-border-primary">
         <div className="px-[1ch] py-0 bg-surface-secondary text-text-muted uppercase">Export</div>
-        <div className="px-[1ch] py-6 text-text-muted text-center">Export targets coming soon</div>
+        <div className="px-[1ch] py-[1lh] text-text-muted text-center">Export targets coming soon</div>
       </div>
     </div>
   );

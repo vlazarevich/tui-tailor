@@ -101,7 +101,7 @@ export function loadInitialState(): ComposerState {
 export function encodeConfig(config: SurfaceConfig): string {
   try {
     const json = JSON.stringify(config);
-    return btoa(json);
+    return btoa(encodeURIComponent(json));
   } catch {
     return "";
   }
@@ -109,7 +109,7 @@ export function encodeConfig(config: SurfaceConfig): string {
 
 export function decodeConfig(encoded: string): SurfaceConfig | null {
   try {
-    const json = atob(encoded);
+    const json = decodeURIComponent(atob(encoded));
     const parsed = JSON.parse(json);
     if (!parsed.surfaceId || !parsed.zones) return null;
     migrateZones(parsed.zones);

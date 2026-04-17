@@ -34,11 +34,11 @@ export default function ConfigShare() {
       <div className="px-[1ch] py-0 flex flex-col">
         <button
           onClick={handleExport}
-          className="px-[1ch] py-0 bg-surface-elevated outline-1 outline-border-primary text-text-secondary cursor-pointer hover:text-text-primary font-mono my-6"
+          className="px-[1ch] py-0 bg-surface-elevated outline-1 outline-border-primary text-text-secondary cursor-pointer hover:text-text-primary font-mono my-[1lh]"
         >
           {copied ? "Copied!" : "Copy config string"}
         </button>
-        <div className="flex gap-[1ch] mb-6">
+        <div className="flex gap-[1ch] mb-[1lh]">
           <input
             type="text"
             placeholder="Paste config..."
@@ -57,7 +57,7 @@ export default function ConfigShare() {
             Load
           </button>
         </div>
-        {error && <div className="text-semantic-error mb-6">{error}</div>}
+        {error && <div className="text-semantic-error mb-[1lh]">{error}</div>}
       </div>
     </div>
   );
