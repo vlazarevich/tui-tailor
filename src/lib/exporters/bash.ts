@@ -1,31 +1,10 @@
-import type { SurfaceConfig, CodeSection, ZoneLayoutType, BlockDefinition } from "../types";
+import type { SurfaceConfig, CodeSection, ZoneLayoutType } from "../types";
 import type { ThemeDefinition } from "../data/themes";
 import { getBlockById } from "../data/blocks";
 import { getSurfaceById } from "../data/surfaces";
-
-// ─── Color utilities ──────────────────────────────────────────────────────────
-
-function hexToRgb(hex: string): [number, number, number] | null {
-  const m = hex.match(/^#([0-9a-f]{6})$/i);
-  if (!m) return null;
-  const n = parseInt(m[1], 16);
-  return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
-}
-
-function relativeLuminance([r, g, b]: [number, number, number]): number {
-  const [rs, gs, bs] = [r, g, b].map((c) => {
-    const s = c / 255;
-    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
-  });
-  return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
-}
-
-function autoContrastHex(bgHex: string): string {
-  const rgb = hexToRgb(bgHex);
-  if (!rgb) return "#ffffff";
-  const lum = relativeLuminance(rgb);
-  return 1.05 / (lum + 0.05) >= (lum + 0.05) / 0.05 ? "#ffffff" : "#000000";
-}
+import { hexToRgb, autoContrast, resolveSlot } from "../color";
+import { templateElems, blockIcon, blockConnector, blockStyleTemplate } from "../blockHelpers";
+import { isZoneEnabled } from "../composerContext";
 
 // Returns a PS1-wrapped foreground ANSI escape (for use in _ps1 strings)
 function fgEscape(hex: string): string {
@@ -54,14 +33,6 @@ const RAW_RESET = "$'\\e[0m'";
 
 // ─── Theme slot resolution ────────────────────────────────────────────────────
 
-function resolveSlot(slot: string, theme: ThemeDefinition): string | null {
-  const direct = theme.tokens[`--tt-color-${slot}`];
-  if (direct) return direct;
-  const dash = slot.lastIndexOf("-");
-  if (dash > 0) return theme.tokens[`--tt-color-${slot.slice(0, dash)}`] ?? null;
-  return null;
-}
-
 function slotVarName(slot: string, theme: ThemeDefinition): string {
   if (theme.tokens[`--tt-color-${slot}`]) {
     return `_TT_${slot.toUpperCase().replace(/-/g, "_")}`;
@@ -69,25 +40,6 @@ function slotVarName(slot: string, theme: ThemeDefinition): string {
   const dash = slot.lastIndexOf("-");
   const root = dash > 0 ? slot.slice(0, dash) : slot;
   return `_TT_${root.toUpperCase().replace(/-/g, "_")}`;
-}
-
-// Returns set of element names referenced in a style template
-function templateElems(template: string): Set<string> {
-  const elems = new Set<string>();
-  for (const m of template.matchAll(/\{(\w+)\}/g)) elems.add(m[1]);
-  return elems;
-}
-
-function blockIcon(block: BlockDefinition): string {
-  return Object.values(block.elements).find((e) => e.role === "icon")?.value ?? "";
-}
-
-function blockConnector(block: BlockDefinition): string {
-  return Object.values(block.elements).find((e) => e.role === "connector")?.value ?? "";
-}
-
-function blockStyleTemplate(block: BlockDefinition, style: string): string {
-  return block.styles[style] ?? block.styles[block.defaultStyle] ?? "";
 }
 
 // ─── Collect all color vars needed for this config ───────────────────────────
@@ -142,7 +94,7 @@ function addSlot(
   const info: ColorVarInfo = { fg: hex };
   if (includeBg) {
     info.bg = hex;
-    info.acFg = autoContrastHex(hex);
+    info.acFg = autoContrast(hex);
   }
   vars.set(name, info);
 }
@@ -608,7 +560,7 @@ function generatePowertabZoneCode(
     const block = getBlockById(inst.blockId);
     if (!block) continue;
     const slotHex = resolveSlot(block.themeSlot, theme) ?? "#888888";
-    const acHex = autoContrastHex(slotHex);
+    const acHex = autoContrast(slotHex);
 
     // Icon region: block bg + auto-contrast fg
     const bgEsc = bgEscape(slotHex);
@@ -652,15 +604,6 @@ function resolveLayout(
   config: SurfaceConfig
 ): ZoneLayoutType {
   return zoneConfig.layout ?? getSurfaceById(config.surfaceId)?.defaultLayout ?? "plain";
-}
-
-function isZoneEnabled(zoneId: string, config: SurfaceConfig): boolean {
-  const surface = getSurfaceById(config.surfaceId);
-  if (!surface) return false;
-  const zoneDef = surface.zones.find((z) => z.id === zoneId);
-  if (!zoneDef) return false;
-  if (!zoneDef.optional) return true;
-  return config.zones[zoneId]?.enabled !== false;
 }
 
 // ─── Prompt section ───────────────────────────────────────────────────────────

@@ -1,7 +1,6 @@
-import { useComposerState, useActiveConfig, useComposerDispatch } from "../lib/composerContext";
+import { useComposerState, useActiveConfig, useComposerDispatch, isZoneEnabled } from "../lib/composerContext";
 import { getSurfaceById } from "../lib/data/surfaces";
 import ZoneEditor from "./ZoneEditor";
-import type { ZoneDefinition } from "../lib/types";
 
 export default function Canvas() {
   const state = useComposerState();
@@ -13,14 +12,8 @@ export default function Canvas() {
     return <div className="text-text-muted px-[2ch] py-6">No surface selected</div>;
   }
 
-  // A zone is enabled if it's required OR its config.enabled !== false
-  function isZoneEnabled(zone: ZoneDefinition): boolean {
-    if (!zone.optional) return true;
-    return config.zones[zone.id]?.enabled !== false;
-  }
-
-  const activeZones = surface.zones.filter((z) => isZoneEnabled(z));
-  const disabledOptionalZones = surface.zones.filter((z) => z.optional && !isZoneEnabled(z));
+  const activeZones = surface.zones.filter((z) => isZoneEnabled(z.id, config));
+  const disabledOptionalZones = surface.zones.filter((z) => z.optional && !isZoneEnabled(z.id, config));
 
   // Zones available for "move to" in popup: all currently enabled zones
   const enabledZoneDefs = activeZones;

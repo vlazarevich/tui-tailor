@@ -29,6 +29,15 @@ function getActiveConfig(state: ComposerState): SurfaceConfig {
   return state.configs[state.activeSurfaceId] ?? createDefaultConfig(state.activeSurfaceId);
 }
 
+export function isZoneEnabled(zoneId: string, config: SurfaceConfig): boolean {
+  const surface = getSurfaceById(config.surfaceId);
+  if (!surface) return false;
+  const zoneDef = surface.zones.find((z) => z.id === zoneId);
+  if (!zoneDef) return false;
+  if (!zoneDef.optional) return true;
+  return config.zones[zoneId]?.enabled !== false;
+}
+
 export function createDefaultConfig(surfaceId: string): SurfaceConfig {
   const surface = getSurfaceById(surfaceId);
   const zones: Record<string, ZoneConfig> = {};

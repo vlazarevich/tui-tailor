@@ -11,6 +11,7 @@ import type {
   PowertabConfig,
 } from "./types";
 import type { ThemeDefinition } from "./data/themes";
+import { autoContrast, resolveSlot } from "./color";
 
 // ---------------------------------------------------------------------------
 // Stage 1: EMIT — resolve block elements against scenario data
@@ -341,67 +342,18 @@ function resolveColor(fg: string | null, bg: string | null, theme: ThemeDefiniti
   if (!fg) return null;
   if (fg === "auto-contrast") {
     const bgResolved = resolveBgColor(bg, theme);
-    return bgResolved ? computeAutoContrast(bgResolved) : null;
+    return bgResolved ? autoContrast(bgResolved) : null;
   }
   if (fg === "muted") return theme.tokens["--tt-text-muted"] ?? null;
   if (fg === "border") return theme.tokens["--tt-border-primary"] ?? null;
 
-  return resolveSlotColor(fg, theme);
+  return resolveSlot(fg, theme);
 }
 
 function resolveBgColor(bg: string | null, theme: ThemeDefinition): string | null {
   if (!bg) return null;
   if (bg === "default") return theme.tokens["--tt-surface-terminal"] ?? null;
-  return resolveSlotColor(bg, theme);
-}
-
-function resolveSlotColor(slot: string, theme: ThemeDefinition): string | null {
-  // Try exact slot
-  const direct = theme.tokens[`--tt-color-${slot}`];
-  if (direct) return direct;
-
-  // Sub-slot fallback: vcs-ahead → vcs
-  const dashIndex = slot.lastIndexOf("-");
-  if (dashIndex > 0) {
-    const parent = slot.slice(0, dashIndex);
-    const parentColor = theme.tokens[`--tt-color-${parent}`];
-    if (parentColor) return parentColor;
-  }
-
-  return null;
-}
-
-// ---------------------------------------------------------------------------
-// Auto-contrast: WCAG AA compliance (4.5:1 minimum)
-// ---------------------------------------------------------------------------
-
-function computeAutoContrast(bgHex: string): string {
-  const bg = hexToRgb(bgHex);
-  if (!bg) return "#000000";
-
-  const bgLum = relativeLuminance(bg);
-  // Use white or black text depending on contrast
-  const whiteLum = 1.0;
-  const blackLum = 0.0;
-
-  const contrastWithWhite = (whiteLum + 0.05) / (bgLum + 0.05);
-  const contrastWithBlack = (bgLum + 0.05) / (blackLum + 0.05);
-
-  return contrastWithWhite >= contrastWithBlack ? "#ffffff" : "#000000";
-}
-
-function hexToRgb(hex: string): [number, number, number] | null {
-  const match = hex.match(/^#([0-9a-f]{6})$/i);
-  if (!match) return null;
-  const n = parseInt(match[1], 16);
-  return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
-}
-
-function relativeLuminance([r, g, b]: [number, number, number]): number {
-  const [rs, gs, bs] = [r / 255, g / 255, b / 255].map((c) =>
-    c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4),
-  );
-  return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+  return resolveSlot(bg, theme);
 }
 
 // ---------------------------------------------------------------------------

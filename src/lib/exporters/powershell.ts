@@ -1,16 +1,10 @@
-import type { SurfaceConfig, CodeSection, ZoneLayoutType, BlockDefinition } from "../types";
+import type { SurfaceConfig, CodeSection, ZoneLayoutType } from "../types";
 import type { ThemeDefinition } from "../data/themes";
 import { getBlockById } from "../data/blocks";
 import { getSurfaceById } from "../data/surfaces";
-
-// ─── Color utilities ──────────────────────────────────────────────────────────
-
-function hexToRgb(hex: string): [number, number, number] | null {
-  const m = hex.match(/^#([0-9a-f]{6})$/i);
-  if (!m) return null;
-  const n = parseInt(m[1], 16);
-  return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
-}
+import { hexToRgb, resolveSlot } from "../color";
+import { templateElems, blockIcon, blockConnector, blockStyleTemplate } from "../blockHelpers";
+import { isZoneEnabled } from "../composerContext";
 
 // PowerShell truecolor fg escape: [char]27 + '[38;2;R;G;Bm'
 function psColor(hex: string): string {
@@ -30,14 +24,6 @@ const PS_RESET = `[char]27 + '[0m'`;
 
 // ─── Theme slot resolution ────────────────────────────────────────────────────
 
-function resolveSlot(slot: string, theme: ThemeDefinition): string | null {
-  const direct = theme.tokens[`--tt-color-${slot}`];
-  if (direct) return direct;
-  const dash = slot.lastIndexOf("-");
-  if (dash > 0) return theme.tokens[`--tt-color-${slot.slice(0, dash)}`] ?? null;
-  return null;
-}
-
 // Returns PS variable name: $TtColorVcs, $TtColorPath, etc.
 function psVarName(slot: string, theme: ThemeDefinition): string {
   let root = slot;
@@ -51,24 +37,6 @@ function psVarName(slot: string, theme: ThemeDefinition): string {
     .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
     .join("");
   return `$TtColor${pascal}`;
-}
-
-function templateElems(template: string): Set<string> {
-  const elems = new Set<string>();
-  for (const m of template.matchAll(/\{(\w+)\}/g)) elems.add(m[1]);
-  return elems;
-}
-
-function blockIcon(block: BlockDefinition): string {
-  return Object.values(block.elements).find((e) => e.role === "icon")?.value ?? "";
-}
-
-function blockConnector(block: BlockDefinition): string {
-  return Object.values(block.elements).find((e) => e.role === "connector")?.value ?? "";
-}
-
-function blockStyleTemplate(block: BlockDefinition, style: string): string {
-  return block.styles[style] ?? block.styles[block.defaultStyle] ?? "";
 }
 
 // ─── Colors section ───────────────────────────────────────────────────────────
@@ -209,13 +177,13 @@ function generateGitBranchBlock(style: string, layout: ZoneLayoutType, theme: Th
   } else {
     let contentExpr = `${pref}"${colorVar}${icon}$branch"`;
     if (elems.has("ahead")) {
-      contentExpr += ` + (if ([int]$aheadN -gt 0) { " ${aheadColorVar}↑$aheadN${colorVar}" } else { "" })`;
+      contentExpr += ` + $(if ([int]$aheadN -gt 0) { " ${aheadColorVar}↑$aheadN${colorVar}" } else { "" })`;
     }
     if (elems.has("behind")) {
-      contentExpr += ` + (if ([int]$behindN -gt 0) { " ${behindColorVar}↓$behindN${colorVar}" } else { "" })`;
+      contentExpr += ` + $(if ([int]$behindN -gt 0) { " ${behindColorVar}↓$behindN${colorVar}" } else { "" })`;
     }
     if (elems.has("dirty")) {
-      contentExpr += ` + (if ($dirty) { " ${dirtyColorVar}*" } else { "" })`;
+      contentExpr += ` + $(if ($dirty) { " ${dirtyColorVar}*" } else { "" })`;
     }
     lines.push(`    $prompt += ${contentExpr} + "$TtReset "`);
   }
@@ -414,15 +382,6 @@ function generatePsBlock(
 
 function resolveLayout(zoneConfig: { layout?: ZoneLayoutType }, config: SurfaceConfig): ZoneLayoutType {
   return zoneConfig.layout ?? getSurfaceById(config.surfaceId)?.defaultLayout ?? "plain";
-}
-
-function isZoneEnabled(zoneId: string, config: SurfaceConfig): boolean {
-  const surface = getSurfaceById(config.surfaceId);
-  if (!surface) return false;
-  const zoneDef = surface.zones.find((z) => z.id === zoneId);
-  if (!zoneDef) return false;
-  if (!zoneDef.optional) return true;
-  return config.zones[zoneId]?.enabled !== false;
 }
 
 // ─── Prompt section ───────────────────────────────────────────────────────────

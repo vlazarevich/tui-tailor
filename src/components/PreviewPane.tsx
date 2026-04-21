@@ -1,4 +1,4 @@
-import { useComposerState, useActiveConfig } from "../lib/composerContext";
+import { useComposerState, useActiveConfig, isZoneEnabled } from "../lib/composerContext";
 import { getSurfaceById, getLayoutForType } from "../lib/data/surfaces";
 import { getScenariosBySurfaceId } from "../lib/data/scenarios";
 import { getThemeById } from "../lib/data/themes";
@@ -56,24 +56,17 @@ export default function PreviewPane() {
     return getLayoutForType(config.zones[zoneId]?.layout ?? defaultLayout);
   }
 
-  function isZoneEnabled(zoneId: string): boolean {
-    const zoneDef = surface!.zones.find((z) => z.id === zoneId);
-    if (!zoneDef) return false;
-    if (!zoneDef.optional) return true;
-    return config.zones[zoneId]?.enabled !== false;
-  }
-
   return (
     <div className="flex flex-col">
       <div className="px-[1ch] py-3 text-text-muted uppercase outline-1 outline-border-muted">Preview</div>
       <div className="flex flex-col px-[2ch] py-3">
         {scenarios.map((scenario, si) => {
           const leftSpans = renderZoneSpans(config.zones["left-prompt"], scenario.data, getZoneLayout("left-prompt"), theme);
-          const rightSpans = isZoneEnabled("right-prompt")
+          const rightSpans = isZoneEnabled("right-prompt", config)
             ? renderZoneSpans(config.zones["right-prompt"], scenario.data, getZoneLayout("right-prompt"), theme)
             : [];
           const continuationSpans =
-            scenario.data.multilineCommand && isZoneEnabled("continuation-prompt")
+            scenario.data.multilineCommand && isZoneEnabled("continuation-prompt", config)
               ? renderZoneSpans(config.zones["continuation-prompt"], scenario.data, getZoneLayout("continuation-prompt"), theme)
               : [];
 
