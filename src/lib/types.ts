@@ -1,11 +1,23 @@
 export type ElementRole = "content" | "icon" | "connector";
 
 export interface ElementDefinition {
-  source?: string;
   value?: string;
-  format?: string;
+  capture?: string;
   role: ElementRole;
   themeSlot?: string;
+}
+
+export interface TargetCaptureBinding {
+  setup: string[];
+  ref: string;
+  guard: string;
+}
+
+export interface CaptureDefinition {
+  scenario: (data: ScenarioData) => string | number | boolean | undefined;
+  /** If true, capture is optional (gates its own element inline). Default false = required (gates the block). */
+  optional?: boolean;
+  targets: Record<ExportTargetId, TargetCaptureBinding>;
 }
 
 export interface BlockDefinition {
@@ -14,6 +26,7 @@ export interface BlockDefinition {
   category: string;
   surfaces: string[];
   elements: Record<string, ElementDefinition>;
+  captures?: Record<string, CaptureDefinition>;
   styles: Record<string, string>;
   themeSlot: string;
   defaultStyle: string;

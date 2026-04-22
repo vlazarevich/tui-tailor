@@ -19,42 +19,26 @@ import { autoContrast, resolveSlot } from "./color";
 
 export function emitElements(block: BlockDefinition, scenario: ScenarioData): Record<string, ResolvedElement> {
   const result: Record<string, ResolvedElement> = {};
-
   for (const [name, elem] of Object.entries(block.elements)) {
-    const text = resolveElementText(elem, scenario);
+    const text = resolveElementText(block, elem, scenario);
     const themeSlot = elem.themeSlot ?? block.themeSlot;
     result[name] = { name, text, themeSlot, role: elem.role };
   }
-
   return result;
 }
 
-function resolveElementText(elem: ElementDefinition, scenario: ScenarioData): string {
-  // Static value — always use as-is
-  if (elem.value !== undefined) {
-    return elem.value;
-  }
-
-  // Source-based resolution
-  if (!elem.source) return "";
-
-  const raw = (scenario as Record<string, unknown>)[elem.source];
-
-  // No format string — just stringify the source value
-  if (!elem.format) {
-    if (raw === undefined || raw === null || raw === "") return "";
-    return String(raw);
-  }
-
-  // Flag format: format string with no {} placeholder
-  // Show the format text if source is strictly true, empty otherwise
-  if (!elem.format.includes("{}")) {
-    return raw === true ? elem.format : "";
-  }
-
-  // Template format: replace {} with source value
-  if (raw === undefined || raw === null || raw === "" || raw === 0) return "";
-  return elem.format.replace("{}", String(raw));
+function resolveElementText(
+  block: BlockDefinition,
+  elem: ElementDefinition,
+  scenario: ScenarioData,
+): string {
+  if (elem.value !== undefined) return elem.value;
+  if (!elem.capture) return "";
+  const capture = block.captures?.[elem.capture];
+  if (!capture) return "";
+  const raw = capture.scenario(scenario);
+  if (raw === undefined || raw === null || raw === "" || raw === false) return "";
+  return String(raw);
 }
 
 // ---------------------------------------------------------------------------
