@@ -6,6 +6,9 @@ import type {
   RenderSpan,
   TargetCaptureBinding,
   ZoneLayout,
+  ZoneDefinition,
+  ZoneTargetBinding,
+  ZoneConfig,
 } from "../types";
 import type { ThemeDefinition } from "../data/themes";
 import type { BlockSpans } from "../compose/ir";
@@ -207,6 +210,7 @@ function buildPSBlockSpec(
     if (!binding) {
       if (!cap.optional) {
         warning = {
+          kind: "block",
           blockId: block.id,
           blockName: block.name,
           reason: `no powershell-prompt binding for required capture '${elem.capture}'`,
@@ -378,6 +382,46 @@ function indent(lines: string[], n = 4): string[] {
   return lines.map((l) => (l === "" ? "" : pad + l));
 }
 
+// ─── Slot handlers ───────────────────────────────────────────────────────────
+
+interface PSSlotContext {
+  binding: ZoneTargetBinding;
+  zoneDef: ZoneDefinition;
+  zoneConfig: ZoneConfig | undefined;
+  layout: ZoneLayout;
+  theme: ThemeDefinition;
+  config: SurfaceConfig;
+  warnings: ExportWarning[];
+}
+
+type PSSlotHandler = (ctx: PSSlotContext) => string[];
+
+const PS_SLOTS: Record<string, PSSlotHandler> = {
+  "prompt-body": ({ zoneDef, zoneConfig, layout, theme, config, warnings }) => {
+    const blocks = zoneConfig?.blocks ?? [];
+    if (zoneDef.optional && !isZoneEnabled(zoneDef.id, config)) return [];
+    if (blocks.length === 0) return [];
+    return indent(emitZone(blocks, layout, "$prompt", theme, PS_TARGET, warnings));
+  },
+  rprompt: ({ zoneDef, zoneConfig, layout, theme, config, warnings }) => {
+    if (!isZoneEnabled(zoneDef.id, config) || (zoneConfig?.blocks.length ?? 0) === 0) return [];
+    return [
+      `    # ── right-prompt (cursor positioning — may be unreliable on resize)`,
+      `    $rPrompt = ""`,
+      ``,
+      ...indent(emitZone(zoneConfig!.blocks, layout, "$rPrompt", theme, PS_TARGET, warnings)),
+      `    if ($rPrompt) {`,
+      `        $cols = $Host.UI.RawUI.WindowSize.Width`,
+      `        $rLenClean = ($rPrompt -replace '\\x1b\\[[0-9;]*m','').Length`,
+      `        $pos = $cols - $rLenClean`,
+      `        Write-Host -NoNewline "$([char]27)[s$([char]27)[$($pos)G$rPrompt$([char]27)[u"`,
+      `    }`,
+      ``,
+    ];
+  },
+  continuation: () => [],
+};
+
 function generatePromptSection(
   config: SurfaceConfig,
   theme: ThemeDefinition,
@@ -389,26 +433,19 @@ function generatePromptSection(
   const promptChar = String(config.globalOptions?.["prompt-char"] ?? "❯");
   const multiline = Boolean(config.globalOptions?.["multiline"] ?? false);
 
-  const leftZone = config.zones["left-prompt"];
-  const rightZone = config.zones["right-prompt"];
-
-  const leftLayout = resolveLayout(leftZone ?? {}, config);
-  const rightLayout = resolveLayout(rightZone ?? {}, config);
-
-  const hasPowerline = [leftLayout.type, rightLayout.type].some(
-    (l) => l === "powerline" || l === "powertab",
-  );
-  const hasRight = isZoneEnabled("right-prompt", config) && (rightZone?.blocks.length ?? 0) > 0;
-
   let needsExitCapture = false;
   let needsTimerSetup = false;
-  const scan = (zone?: { blocks: Array<{ blockId: string; style: string }> }) => {
-    for (const inst of zone?.blocks ?? []) {
+  for (const zone of surface.zones) {
+    for (const inst of config.zones[zone.id]?.blocks ?? []) {
       if (inst.blockId === "exit-code") needsExitCapture = true;
       if (inst.blockId === "cmd-duration") needsTimerSetup = true;
     }
-  };
-  scan(leftZone); scan(rightZone);
+  }
+
+  const hasPowerline = surface.zones.some((zone) => {
+    const zc = config.zones[zone.id];
+    return (resolveLayout(zc ?? {}, config).type === "powerline" || resolveLayout(zc ?? {}, config).type === "powertab");
+  });
 
   const lines: string[] = [];
   if (needsTimerSetup) {
@@ -423,22 +460,20 @@ function generatePromptSection(
   lines.push(`    $prompt = ""`);
   lines.push(``);
 
-  if (leftZone) {
-    lines.push(...indent(emitZone(leftZone.blocks, leftLayout, "$prompt", theme, PS_TARGET, warnings)));
-  }
-
-  if (hasRight) {
-    lines.push(`    # ── right-prompt (cursor positioning — may be unreliable on resize)`);
-    lines.push(`    $rPrompt = ""`);
-    lines.push(``);
-    lines.push(...indent(emitZone(rightZone!.blocks, rightLayout, "$rPrompt", theme, PS_TARGET, warnings)));
-    lines.push(`    if ($rPrompt) {`);
-    lines.push(`        $cols = $Host.UI.RawUI.WindowSize.Width`);
-    lines.push(`        $rLenClean = ($rPrompt -replace '\\x1b\\[[0-9;]*m','').Length`);
-    lines.push(`        $pos = $cols - $rLenClean`);
-    lines.push(`        Write-Host -NoNewline "$([char]27)[s$([char]27)[$($pos)G$rPrompt$([char]27)[u"`);
-    lines.push(`    }`);
-    lines.push(``);
+  for (const zone of surface.zones) {
+    const binding = zone.targetBindings["powershell-prompt"];
+    if (!binding) continue;
+    const handler = PS_SLOTS[binding.slot];
+    if (!handler) {
+      const zoneConfig = config.zones[zone.id];
+      if ((zoneConfig?.blocks.length ?? 0) > 0 && isZoneEnabled(zone.id, config)) {
+        warnings.push({ kind: "zone-slot", zoneId: zone.id, zoneName: zone.name, slot: binding.slot });
+      }
+      continue;
+    }
+    const zoneConfig = config.zones[zone.id];
+    const layout = resolveLayout(zoneConfig ?? {}, config);
+    lines.push(...handler({ binding, zoneDef: zone, zoneConfig, layout, theme, config, warnings }));
   }
 
   const newline = multiline ? "`n" : "";

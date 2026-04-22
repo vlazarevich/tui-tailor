@@ -6,6 +6,9 @@ import type {
   RenderSpan,
   TargetCaptureBinding,
   ZoneLayout,
+  ZoneDefinition,
+  ZoneTargetBinding,
+  ZoneConfig,
 } from "../types";
 import type { ThemeDefinition } from "../data/themes";
 import type { BlockSpans } from "../compose/ir";
@@ -193,11 +196,9 @@ function parseTemplate(tmpl: string): Array<{ kind: "lit"; text: string } | { ki
 
 // ─── Per-block spec builder ──────────────────────────────────────────────────
 
-export interface ExportWarning {
-  blockId: string;
-  blockName: string;
-  reason: string;
-}
+export type ExportWarning =
+  | { kind: "block"; blockId: string; blockName: string; reason: string }
+  | { kind: "zone-slot"; zoneId: string; zoneName: string; slot: string };
 
 interface BashBlockSpec {
   name: string;
@@ -232,6 +233,7 @@ function buildBashBlockSpec(
     if (!binding) {
       if (!cap.optional) {
         warning = {
+          kind: "block",
           blockId: block.id,
           blockName: block.name,
           reason: `no bash-ps1 binding for required capture '${elem.capture}'`,
@@ -406,6 +408,55 @@ function indent(lines: string[], n = 2): string[] {
   return lines.map((l) => (l === "" ? "" : pad + l));
 }
 
+// ─── Slot handlers ───────────────────────────────────────────────────────────
+
+interface BashSlotContext {
+  binding: ZoneTargetBinding;
+  zoneDef: ZoneDefinition;
+  zoneConfig: ZoneConfig | undefined;
+  layout: ZoneLayout;
+  theme: ThemeDefinition;
+  config: SurfaceConfig;
+  warnings: ExportWarning[];
+}
+
+type BashSlotHandler = (ctx: BashSlotContext) => string[];
+
+const BASH_SLOTS: Record<string, BashSlotHandler> = {
+  PS1: ({ binding, zoneDef, zoneConfig, layout, theme, config, warnings }) => {
+    const blocks = zoneConfig?.blocks ?? [];
+    if (zoneDef.optional && !isZoneEnabled(zoneDef.id, config)) return [];
+    if (binding.strategy === "ansi-cursor") {
+      if (blocks.length === 0) return [];
+      return [
+        `  # ── right-prompt (cursor positioning — may be unreliable on resize)`,
+        `  local _rps1="" _rlen=0`,
+        ``,
+        ...indent(emitZone(blocks, layout, "_rps1", theme, rightTarget(theme), warnings)),
+        `  if [[ -n "$_rps1" ]]; then`,
+        `    printf "\\e7\\e[%dG%s\\e8" "$(( \${COLUMNS:-80} - _rlen + 1 ))" "$_rps1"`,
+        `  fi`,
+        ``,
+      ];
+    }
+    if (blocks.length === 0) return [];
+    return [
+      `  local _ps1=""`,
+      ``,
+      ...indent(emitZone(blocks, layout, "_ps1", theme, LEFT_TARGET, warnings)),
+    ];
+  },
+  PS2: ({ zoneDef, zoneConfig, layout, theme, config, warnings }) => {
+    if (!isZoneEnabled(zoneDef.id, config) || (zoneConfig?.blocks.length ?? 0) === 0) return [];
+    return [
+      `  local _ps2=""`,
+      ...indent(emitZone(zoneConfig!.blocks, layout, "_ps2", theme, LEFT_TARGET, warnings)),
+      `  PS2="$_ps2"`,
+      ``,
+    ];
+  },
+};
+
 function generatePromptSection(
   config: SurfaceConfig,
   theme: ThemeDefinition,
@@ -417,29 +468,19 @@ function generatePromptSection(
   const promptChar = String(config.globalOptions?.["prompt-char"] ?? "❯");
   const multiline = Boolean(config.globalOptions?.["multiline"] ?? false);
 
-  const leftZone = config.zones["left-prompt"];
-  const rightZone = config.zones["right-prompt"];
-  const contZone = config.zones["continuation-prompt"];
-
-  const leftLayout = resolveLayout(leftZone ?? {}, config);
-  const rightLayout = resolveLayout(rightZone ?? {}, config);
-  const contLayout = resolveLayout(contZone ?? {}, config);
-
-  const hasPowerline = [leftLayout.type, rightLayout.type, contLayout.type].some(
-    (l) => l === "powerline" || l === "powertab",
-  );
-  const hasRight = isZoneEnabled("right-prompt", config) && (rightZone?.blocks.length ?? 0) > 0;
-  const hasCont = isZoneEnabled("continuation-prompt", config) && (contZone?.blocks.length ?? 0) > 0;
-
   let needsExitCapture = false;
   let needsTimerSetup = false;
-  const scan = (zone?: { blocks: Array<{ blockId: string; style: string }> }) => {
-    for (const inst of zone?.blocks ?? []) {
+  for (const zone of surface.zones) {
+    for (const inst of config.zones[zone.id]?.blocks ?? []) {
       if (inst.blockId === "exit-code") needsExitCapture = true;
       if (inst.blockId === "cmd-duration") needsTimerSetup = true;
     }
-  };
-  scan(leftZone); scan(rightZone); scan(contZone);
+  }
+
+  const hasPowerline = surface.zones.some((zone) => {
+    const zc = config.zones[zone.id];
+    return (resolveLayout(zc ?? {}, config).type === "powerline" || resolveLayout(zc ?? {}, config).type === "powertab");
+  });
 
   const fn: string[] = [];
   if (needsTimerSetup) {
@@ -456,28 +497,20 @@ function generatePromptSection(
     fn.push(`  local _cmd_ms=$(( _cmd_end - _TT_CMD_START ))`);
   }
 
-  if ((leftZone?.blocks.length ?? 0) > 0) {
-    fn.push(`  local _ps1=""`);
-    fn.push(``);
-    fn.push(...indent(emitZone(leftZone!.blocks, leftLayout, "_ps1", theme, LEFT_TARGET, warnings)));
-  }
-
-  if (hasRight) {
-    fn.push(`  # ── right-prompt (cursor positioning — may be unreliable on resize)`);
-    fn.push(`  local _rps1="" _rlen=0`);
-    fn.push(``);
-    fn.push(...indent(emitZone(rightZone!.blocks, rightLayout, "_rps1", theme, rightTarget(theme), warnings)));
-    fn.push(`  if [[ -n "$_rps1" ]]; then`);
-    fn.push(`    printf "\\e7\\e[%dG%s\\e8" "$(( \${COLUMNS:-80} - _rlen + 1 ))" "$_rps1"`);
-    fn.push(`  fi`);
-    fn.push(``);
-  }
-
-  if (hasCont) {
-    fn.push(`  local _ps2=""`);
-    fn.push(...indent(emitZone(contZone!.blocks, contLayout, "_ps2", theme, LEFT_TARGET, warnings)));
-    fn.push(`  PS2="$_ps2"`);
-    fn.push(``);
+  for (const zone of surface.zones) {
+    const binding = zone.targetBindings["bash-ps1"];
+    if (!binding) continue;
+    const handler = BASH_SLOTS[binding.slot];
+    if (!handler) {
+      const zoneConfig = config.zones[zone.id];
+      if ((zoneConfig?.blocks.length ?? 0) > 0 && isZoneEnabled(zone.id, config)) {
+        warnings.push({ kind: "zone-slot", zoneId: zone.id, zoneName: zone.name, slot: binding.slot });
+      }
+      continue;
+    }
+    const zoneConfig = config.zones[zone.id];
+    const layout = resolveLayout(zoneConfig ?? {}, config);
+    fn.push(...handler({ binding, zoneDef: zone, zoneConfig, layout, theme, config, warnings }));
   }
 
   const newline = multiline ? `$'\\n'` : "";

@@ -76,6 +76,12 @@ export interface PowertabConfig {
 
 export type ZoneLayoutType = "plain" | "flow" | "brackets" | "powerline" | "powertab";
 
+export interface ZoneTargetBinding {
+  slot: string;
+  strategy?: string;
+  [k: string]: unknown;
+}
+
 export type ZoneLayout =
   | { type: "plain"; config: PlainConfig }
   | { type: "flow"; config: FlowConfig }
@@ -120,6 +126,7 @@ export interface ZoneDefinition {
   id: string;
   name: string;
   optional?: boolean;
+  targetBindings: Record<ExportTargetId, ZoneTargetBinding>;
 }
 
 export interface GlobalOptionDefinition {

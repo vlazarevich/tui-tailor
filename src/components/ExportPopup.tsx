@@ -24,10 +24,10 @@ export default function ExportPopup({ config, targets, onClose }: Props) {
   const surface = getSurfaceById(config.surfaceId);
   const activeTarget = targets.find((t) => t.id === activeTargetId);
 
-  const { sections, blockWarnings } = useMemo(() => {
-    if (!theme) return { sections: [], blockWarnings: [] };
+  const { sections, exportWarnings } = useMemo(() => {
+    if (!theme) return { sections: [], exportWarnings: [] };
     const result = exportSurfaceDetailed(config, activeTargetId, theme);
-    return { sections: result.sections, blockWarnings: result.warnings };
+    return { sections: result.sections, exportWarnings: result.warnings };
   }, [config, activeTargetId, theme]);
 
   // Zone cost warnings: find enabled zones with cost > 0
@@ -127,16 +127,18 @@ export default function ExportPopup({ config, targets, onClose }: Props) {
         </div>
 
         {/* Zone + block warnings */}
-        {(zoneWarnings.length > 0 || blockWarnings.length > 0) && (
+        {(zoneWarnings.length > 0 || exportWarnings.length > 0) && (
           <div className="px-[2ch] py-[1lh] flex flex-col gap-[0.5lh]">
             {zoneWarnings.map((w) => (
               <div key={`zone-${w.zoneId}`} className="text-semantic-warning text-sm">
                 ⚠ {w.message}
               </div>
             ))}
-            {blockWarnings.map((w, i) => (
-              <div key={`block-${w.blockId}-${i}`} className="text-semantic-warning text-sm">
-                ⚠ {w.blockName}: {w.reason} — block omitted from export
+            {exportWarnings.map((w, i) => (
+              <div key={`export-warn-${i}`} className="text-semantic-warning text-sm">
+                {w.kind === "zone-slot"
+                  ? `⚠ ${w.zoneName}: zone output skipped — target does not support slot "${w.slot}"`
+                  : `⚠ ${w.blockName}: ${w.reason} — block omitted from export`}
               </div>
             ))}
           </div>

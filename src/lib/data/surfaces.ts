@@ -17,9 +17,32 @@ export const SURFACES: Surface[] = [
     id: "terminal-prompt",
     name: "Terminal Prompt",
     zones: [
-      { id: "left-prompt", name: "Left Prompt" },
-      { id: "right-prompt", name: "Right Prompt", optional: true },
-      { id: "continuation-prompt", name: "Continuation Prompt", optional: true },
+      {
+        id: "left-prompt",
+        name: "Left Prompt",
+        targetBindings: {
+          "bash-ps1": { slot: "PS1" },
+          "powershell-prompt": { slot: "prompt-body" },
+        },
+      },
+      {
+        id: "right-prompt",
+        name: "Right Prompt",
+        optional: true,
+        targetBindings: {
+          "bash-ps1": { slot: "PS1", strategy: "ansi-cursor" },
+          "powershell-prompt": { slot: "rprompt" },
+        },
+      },
+      {
+        id: "continuation-prompt",
+        name: "Continuation Prompt",
+        optional: true,
+        targetBindings: {
+          "bash-ps1": { slot: "PS2" },
+          "powershell-prompt": { slot: "continuation" },
+        },
+      },
     ],
     globalOptions: [
       { id: "multiline", name: "Multiline", type: "boolean", defaultValue: false },
