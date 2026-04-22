@@ -67,3 +67,10 @@ The PowerShell exporter SHALL produce its output by iterating block captures and
 #### Scenario: Output for existing configs is equivalent
 - **WHEN** a snapshot config is exported
 - **THEN** the generated PowerShell produces the same runtime prompt as the pre-refactor PowerShell for the same scenario
+
+### Requirement: PowerShell exporter consumes the shared zone IR
+The PowerShell exporter SHALL obtain zone layout via the shared `compose/arrange` module and SHALL NOT carry its own copies of layout logic.
+
+#### Scenario: Powerline/powertab zones render through unified pipeline
+- **WHEN** a config uses powerline or powertab layout and is exported to PowerShell
+- **THEN** the generated output renders every block the preview renders, using spans produced by `compose/arrange`

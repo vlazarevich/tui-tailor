@@ -5,13 +5,21 @@ import type {
   RenderSpan,
   ScenarioData,
   ZoneLayout,
-  PlainConfig,
-  BracketsConfig,
-  PowerlineConfig,
-  PowertabConfig,
 } from "./types";
 import type { ThemeDefinition } from "./data/themes";
 import { autoContrast, resolveSlot } from "./color";
+import type { BlockSpans, SelectSpan } from "./compose/ir";
+import { arrangeSpans } from "./compose/arrange";
+
+export type { BlockSpans, SelectSpan } from "./compose/ir";
+export {
+  arrangePlain,
+  arrangeFlow,
+  arrangeBrackets,
+  arrangePowerline,
+  arrangePowertab,
+  arrangeZone,
+} from "./compose/arrange";
 
 // ---------------------------------------------------------------------------
 // Stage 1: EMIT — resolve block elements against scenario data
@@ -44,12 +52,6 @@ function resolveElementText(
 // ---------------------------------------------------------------------------
 // Stage 2: SELECT — apply style template to produce ordered spans
 // ---------------------------------------------------------------------------
-
-export interface SelectSpan {
-  text: string;
-  themeSlot: string | null;
-  role: "content" | "icon" | "connector" | "literal";
-}
 
 export function selectSpans(styleTemplate: string, elements: Record<string, ResolvedElement>): SelectSpan[] {
   const spans: SelectSpan[] = [];
@@ -134,177 +136,6 @@ export function computeBlockVisibility(elements: Record<string, ResolvedElement>
 }
 
 // ---------------------------------------------------------------------------
-// Stage 3: ARRANGE — zone layout combines block spans into render spans
-// ---------------------------------------------------------------------------
-
-export interface BlockSpans {
-  spans: SelectSpan[];
-  elements: Record<string, ResolvedElement>;
-  themeSlot: string;
-  visible: boolean;
-}
-
-export function arrangePlain(blockSpansList: BlockSpans[], config: PlainConfig): RenderSpan[] {
-  const result: RenderSpan[] = [];
-  let first = true;
-
-  for (const block of blockSpansList) {
-    if (!block.visible) continue;
-    if (!first && config.gap) {
-      result.push({ text: config.gap, fg: null, bg: null, role: "separator" });
-    }
-    for (const span of block.spans) {
-      if (span.role === "connector") continue; // plain layout ignores connectors
-      result.push({ text: span.text, fg: span.themeSlot, bg: null, role: spanRoleToRenderRole(span.role) });
-    }
-    first = false;
-  }
-
-  return result;
-}
-
-export function arrangeFlow(blockSpansList: BlockSpans[]): RenderSpan[] {
-  const result: RenderSpan[] = [];
-
-  for (const block of blockSpansList) {
-    if (!block.visible) continue;
-
-    // Find connector from resolved elements (not from selected spans, since templates don't include {connector})
-    const connectorElem = Object.values(block.elements).find((e) => e.role === "connector");
-    if (connectorElem && connectorElem.text) {
-      result.push({ text: connectorElem.text, fg: "muted", bg: null, role: "connector" });
-      result.push({ text: " ", fg: null, bg: null, role: "separator" });
-    }
-
-    for (const span of block.spans) {
-      if (span.role === "connector") continue;
-      result.push({ text: span.text, fg: span.themeSlot, bg: null, role: spanRoleToRenderRole(span.role) });
-    }
-    result.push({ text: " ", fg: null, bg: null, role: "separator" });
-  }
-
-  // Remove trailing separator
-  if (result.length > 0 && result[result.length - 1].role === "separator") {
-    result.pop();
-  }
-
-  return result;
-}
-
-export function arrangeBrackets(blockSpansList: BlockSpans[], config: BracketsConfig): RenderSpan[] {
-  const result: RenderSpan[] = [];
-  let first = true;
-
-  for (const block of blockSpansList) {
-    if (!block.visible) continue;
-    if (!first && config.gap) {
-      result.push({ text: config.gap, fg: null, bg: null, role: "separator" });
-    }
-    result.push({ text: config.open, fg: "border", bg: null, role: "bracket" });
-    if (config.padding) {
-      result.push({ text: config.padding, fg: null, bg: null, role: "bracket" });
-    }
-    for (const span of block.spans) {
-      if (span.role === "connector") continue; // brackets layout ignores connectors
-      result.push({ text: span.text, fg: span.themeSlot, bg: null, role: spanRoleToRenderRole(span.role) });
-    }
-    if (config.padding) {
-      result.push({ text: config.padding, fg: null, bg: null, role: "bracket" });
-    }
-    result.push({ text: config.close, fg: "border", bg: null, role: "bracket" });
-    first = false;
-  }
-
-  return result;
-}
-
-export function arrangePowerline(blockSpansList: BlockSpans[], config: PowerlineConfig): RenderSpan[] {
-  const result: RenderSpan[] = [];
-  const visible = blockSpansList.filter((b) => b.visible);
-
-  for (let i = 0; i < visible.length; i++) {
-    const block = visible[i];
-    const nextBlock = visible[i + 1];
-
-    // Pad content with spaces
-    result.push({ text: " ", fg: "auto-contrast", bg: block.themeSlot, role: "separator" });
-    for (const span of block.spans) {
-      if (span.role === "connector") continue;
-      result.push({ text: span.text, fg: "auto-contrast", bg: block.themeSlot, role: spanRoleToRenderRole(span.role) });
-    }
-    result.push({ text: " ", fg: "auto-contrast", bg: block.themeSlot, role: "separator" });
-
-    // Separator or terminator glyph
-    if (nextBlock) {
-      result.push({ text: config.separator, fg: block.themeSlot, bg: nextBlock.themeSlot, role: "separator" });
-    } else {
-      result.push({ text: config.terminator, fg: block.themeSlot, bg: "default", role: "separator" });
-    }
-  }
-
-  return result;
-}
-
-export function arrangePowertab(blockSpansList: BlockSpans[], config: PowertabConfig): RenderSpan[] {
-  const result: RenderSpan[] = [];
-  const visible = blockSpansList.filter((b) => b.visible);
-
-  for (let i = 0; i < visible.length; i++) {
-    const block = visible[i];
-
-    // Icon region (colored bg) — pull from resolved elements, not selected spans
-    const iconElem = Object.values(block.elements).find((e) => e.role === "icon");
-    if (iconElem && iconElem.text) {
-      result.push({ text: " ", fg: "auto-contrast", bg: block.themeSlot, role: "icon" });
-      result.push({ text: iconElem.text, fg: "auto-contrast", bg: block.themeSlot, role: "icon" });
-      result.push({ text: " ", fg: "auto-contrast", bg: block.themeSlot, role: "icon" });
-    } else {
-      // Fallback: empty tab region
-      result.push({ text: " ", fg: "auto-contrast", bg: block.themeSlot, role: "icon" });
-    }
-
-    // Separator from icon region to content region
-    result.push({ text: config.separator, fg: block.themeSlot, bg: "default", role: "separator" });
-
-    // Content region (default bg, per-element fg)
-    result.push({ text: " ", fg: null, bg: "default", role: "separator" });
-    for (const span of block.spans) {
-      if (span.role === "icon" || span.role === "connector") continue;
-      result.push({ text: span.text, fg: span.themeSlot, bg: "default", role: spanRoleToRenderRole(span.role) });
-    }
-
-    // Gap or terminator
-    if (i < visible.length - 1) {
-      result.push({ text: " ", fg: null, bg: "default", role: "separator" });
-    } else {
-      result.push({ text: " ", fg: null, bg: "default", role: "separator" });
-    }
-  }
-
-  return result;
-}
-
-export function arrangeZone(blockSpansList: BlockSpans[], layout: ZoneLayout): RenderSpan[] {
-  switch (layout.type) {
-    case "plain":
-      return arrangePlain(blockSpansList, layout.config);
-    case "flow":
-      return arrangeFlow(blockSpansList);
-    case "brackets":
-      return arrangeBrackets(blockSpansList, layout.config);
-    case "powerline":
-      return arrangePowerline(blockSpansList, layout.config);
-    case "powertab":
-      return arrangePowertab(blockSpansList, layout.config);
-  }
-}
-
-function spanRoleToRenderRole(role: string): RenderSpan["role"] {
-  if (role === "content" || role === "icon" || role === "connector") return role;
-  return "content";
-}
-
-// ---------------------------------------------------------------------------
 // Stage 4: PAINT — resolve semantic colors to concrete CSS values
 // ---------------------------------------------------------------------------
 
@@ -330,6 +161,7 @@ function resolveColor(fg: string | null, bg: string | null, theme: ThemeDefiniti
   }
   if (fg === "muted") return theme.tokens["--tt-text-muted"] ?? null;
   if (fg === "border") return theme.tokens["--tt-border-primary"] ?? null;
+  if (fg === "default") return theme.tokens["--tt-surface-terminal"] ?? null;
 
   return resolveSlot(fg, theme);
 }
@@ -355,9 +187,9 @@ export function renderZone(
     const template = block.styles[style] ?? block.styles[block.defaultStyle];
     const spans = selectSpans(template, elements);
     const visible = computeBlockVisibility(elements);
-    return { spans, elements, themeSlot: block.themeSlot, visible };
+    return { blockId: block.id, spans, elements, themeSlot: block.themeSlot, visible };
   });
 
-  const renderSpans = arrangeZone(blockSpansList, layout);
+  const renderSpans = arrangeSpans(blockSpansList, layout);
   return paintSpans(renderSpans, theme);
 }

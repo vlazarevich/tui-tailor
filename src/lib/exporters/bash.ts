@@ -2,15 +2,19 @@ import type {
   SurfaceConfig,
   CodeSection,
   ZoneLayoutType,
-  BlockDefinition,
+  ResolvedElement,
+  RenderSpan,
   TargetCaptureBinding,
+  ZoneLayout,
 } from "../types";
 import type { ThemeDefinition } from "../data/themes";
+import type { BlockSpans } from "../compose/ir";
 import { getBlockById } from "../data/blocks";
-import { getSurfaceById } from "../data/surfaces";
+import { getSurfaceById, LAYOUT_CONFIGS } from "../data/surfaces";
 import { hexToRgb, autoContrast, resolveSlot } from "../color";
-import { blockIcon, blockConnector } from "../blockHelpers";
 import { isZoneEnabled } from "../composerContext";
+import { arrangeZone } from "../compose/arrange";
+import { selectSpans } from "../renderer";
 
 // ─── Escape helpers ───────────────────────────────────────────────────────────
 
@@ -28,36 +32,47 @@ function bgEscape(hex: string): string {
 
 const RESET_ESCAPE = "\\[\\e[0m\\]";
 
-// Raw ANSI-C quoted fg (right-prompt / printf context).
 function rawFg(hex: string): string {
   const rgb = hexToRgb(hex);
   if (!rgb) return "";
   return `$'\\e[38;2;${rgb[0]};${rgb[1]};${rgb[2]}m'`;
 }
 
+function rawBg(hex: string): string {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return "";
+  return `$'\\e[48;2;${rgb[0]};${rgb[1]};${rgb[2]}m'`;
+}
+
 const RAW_RESET = "$'\\e[0m'";
 
 // ─── Theme slot resolution ────────────────────────────────────────────────────
 
-function slotVarName(slot: string, theme: ThemeDefinition): string {
-  const root = theme.tokens[`--tt-color-${slot}`]
+function slotRootName(slot: string, theme: ThemeDefinition): string {
+  return theme.tokens[`--tt-color-${slot}`]
     ? slot
     : slot.includes("-")
       ? slot.slice(0, slot.lastIndexOf("-"))
       : slot;
-  return `_TT_${root.toUpperCase().replace(/-/g, "_")}`;
+}
+
+function slotVarName(slot: string, theme: ThemeDefinition): string {
+  return `_TT_${slotRootName(slot, theme).toUpperCase().replace(/-/g, "_")}`;
 }
 
 // ─── Color collection ─────────────────────────────────────────────────────────
 
 interface ColorVarInfo { fg: string; bg?: string; acFg?: string }
 
+function configHasLayout(config: SurfaceConfig, types: ZoneLayoutType[]): boolean {
+  return Object.values(config.zones).some((z) => types.includes(z.layout ?? "plain" as ZoneLayoutType));
+}
+
 function collectColorVars(config: SurfaceConfig, theme: ThemeDefinition): Map<string, ColorVarInfo> {
   const vars = new Map<string, ColorVarInfo>();
-  const hasPowerline = Object.values(config.zones).some(
-    (z) => z.layout === "powerline" || z.layout === "powertab"
-  );
-  const hasFlow = Object.values(config.zones).some((z) => z.layout === "flow" || !z.layout);
+  const needsBg = configHasLayout(config, ["powerline", "powertab"]);
+  const needsMuted = configHasLayout(config, ["flow"]);
+  const needsBorder = configHasLayout(config, ["brackets"]);
 
   const addSlot = (slot: string) => {
     const hex = resolveSlot(slot, theme);
@@ -65,7 +80,7 @@ function collectColorVars(config: SurfaceConfig, theme: ThemeDefinition): Map<st
     const name = slotVarName(slot, theme);
     if (vars.has(name)) return;
     const info: ColorVarInfo = { fg: hex };
-    if (hasPowerline) { info.bg = hex; info.acFg = autoContrast(hex); }
+    if (needsBg) { info.bg = hex; info.acFg = autoContrast(hex); }
     vars.set(name, info);
   };
 
@@ -80,12 +95,11 @@ function collectColorVars(config: SurfaceConfig, theme: ThemeDefinition): Map<st
     }
   }
 
-  if (hasFlow) {
+  if (needsMuted) {
     const muted = theme.tokens["--tt-text-muted"];
     if (muted) vars.set("_TT_MUTED", { fg: muted });
   }
-  const hasBrackets = Object.values(config.zones).some((z) => z.layout === "brackets");
-  if (hasBrackets) {
+  if (needsBorder) {
     const border = theme.tokens["--tt-border-primary"];
     if (border) vars.set("_TT_BORDER", { fg: border });
   }
@@ -94,42 +108,74 @@ function collectColorVars(config: SurfaceConfig, theme: ThemeDefinition): Map<st
 
 function generateColorsSection(config: SurfaceConfig, theme: ThemeDefinition): string {
   const vars = collectColorVars(config, theme);
-  const hasPowerline = Object.values(config.zones).some(
-    (z) => z.layout === "powerline" || z.layout === "powertab"
-  );
+  const needsBg = configHasLayout(config, ["powerline", "powertab"]);
   const lines: string[] = ["# Add to ~/.bashrc", ""];
   for (const [name, info] of vars) {
     lines.push(`${name}='${fgEscape(info.fg)}'`);
-    if (hasPowerline && info.bg) {
+    if (needsBg && info.bg) {
       lines.push(`${name}_BG='${bgEscape(info.bg)}'`);
       lines.push(`${name}_FG='${fgEscape(info.acFg ?? "#ffffff")}'`);
-      lines.push(`${name}_SF='${fgEscape(info.bg)}'`);
+    }
+  }
+  if (needsBg) {
+    const termHex = theme.tokens["--tt-surface-terminal"];
+    if (termHex) {
+      lines.push(`_TT_DEFAULT='${fgEscape(termHex)}'`);
+      lines.push(`_TT_DEFAULT_BG='${bgEscape(termHex)}'`);
     }
   }
   lines.push(`_TT_RESET='${RESET_ESCAPE}'`);
   return lines.join("\n");
 }
 
-// ─── Generic block walker ─────────────────────────────────────────────────────
+// ─── Target abstraction ──────────────────────────────────────────────────────
 
 interface BashTarget {
-  slotRef(slot: string, theme: ThemeDefinition): string;
+  fgSlot(slot: string, theme: ThemeDefinition): string;
+  fgAuto(bgSlot: string | null, theme: ThemeDefinition): string;
+  fgMuted(theme: ThemeDefinition): string;
+  fgBorder(theme: ThemeDefinition): string;
+  fgDefault(theme: ThemeDefinition): string;
+  bgSlot(slot: string, theme: ThemeDefinition): string;
+  bgDefault(theme: ThemeDefinition): string;
   reset: string;
 }
 
-// Left-prompt target: uses shell vars like ${_TT_VCS}, emits PS1-wrapped escapes.
 const LEFT_TARGET: BashTarget = {
-  slotRef: (slot, theme) => `\${${slotVarName(slot, theme)}}`,
+  fgSlot: (slot, theme) => `\${${slotVarName(slot, theme)}}`,
+  fgAuto: (bgSlot, theme) => {
+    if (!bgSlot) return "";
+    if (bgSlot === "default") return `\${_TT_DEFAULT}`; // auto-contrast against terminal bg falls back to the terminal-surface fg
+    return `\${${slotVarName(bgSlot, theme)}_FG}`;
+  },
+  fgMuted: () => `\${_TT_MUTED}`,
+  fgBorder: () => `\${_TT_BORDER}`,
+  fgDefault: () => `\${_TT_DEFAULT}`,
+  bgSlot: (slot, theme) => `\${${slotVarName(slot, theme)}_BG}`,
+  bgDefault: () => `\${_TT_DEFAULT_BG}`,
   reset: "${_TT_RESET}",
 };
 
-// Right-prompt target: raw ANSI, inlined per-call (no shared vars defined for raw).
 function rightTarget(theme: ThemeDefinition): BashTarget {
   return {
-    slotRef: (slot) => rawFg(resolveSlot(slot, theme) ?? "#ffffff"),
+    fgSlot: (slot) => rawFg(resolveSlot(slot, theme) ?? "#ffffff"),
+    fgAuto: (bgSlot) => {
+      if (!bgSlot) return "";
+      const bgHex = bgSlot === "default"
+        ? (theme.tokens["--tt-surface-terminal"] ?? "#000000")
+        : (resolveSlot(bgSlot, theme) ?? "#000000");
+      return rawFg(autoContrast(bgHex));
+    },
+    fgMuted: (t) => rawFg(t.tokens["--tt-text-muted"] ?? "#888888"),
+    fgBorder: (t) => rawFg(t.tokens["--tt-border-primary"] ?? "#888888"),
+    fgDefault: (t) => rawFg(t.tokens["--tt-surface-terminal"] ?? "#000000"),
+    bgSlot: (slot) => rawBg(resolveSlot(slot, theme) ?? "#000000"),
+    bgDefault: (t) => rawBg(t.tokens["--tt-surface-terminal"] ?? "#000000"),
     reset: RAW_RESET,
   };
 }
+
+// ─── Template parsing ────────────────────────────────────────────────────────
 
 function parseTemplate(tmpl: string): Array<{ kind: "lit"; text: string } | { kind: "elem"; name: string }> {
   const out: Array<{ kind: "lit"; text: string } | { kind: "elem"; name: string }> = [];
@@ -145,248 +191,226 @@ function parseTemplate(tmpl: string): Array<{ kind: "lit"; text: string } | { ki
   return out;
 }
 
-function emitBlock(
-  block: BlockDefinition,
-  style: string,
-  layout: ZoneLayoutType,
-  theme: ThemeDefinition,
-  zoneVar: string,
-  target: BashTarget,
-): string[] {
-  const tmpl = block.styles[style] ?? block.styles[block.defaultStyle];
+// ─── Per-block spec builder ──────────────────────────────────────────────────
+
+export interface ExportWarning {
+  blockId: string;
+  blockName: string;
+  reason: string;
+}
+
+interface BashBlockSpec {
+  name: string;
+  blockId: string;
+  blockSpans: BlockSpans;
+  setup: string[];
+  innerSetup: string[];
+  guard: string | null;
+  warning: ExportWarning | null;
+}
+
+function buildBashBlockSpec(
+  inst: { blockId: string; style: string },
+): BashBlockSpec | null {
+  const block = getBlockById(inst.blockId);
+  if (!block) return null;
+  const tmpl = block.styles[inst.style] ?? block.styles[block.defaultStyle];
   const tokens = parseTemplate(tmpl);
 
-  // Collect capture bindings referenced by the template.
-  const bindings = new Map<string, { binding: TargetCaptureBinding; optional: boolean }>();
+  type Binding = { binding: TargetCaptureBinding; optional: boolean; captureName: string };
+  const bindingsByCapture = new Map<string, Binding>();
+  const elemBindings = new Map<string, Binding>();
+  let warning: ExportWarning | null = null;
+
   for (const tok of tokens) {
     if (tok.kind !== "elem") continue;
     const elem = block.elements[tok.name];
-    if (!elem || !elem.capture || elem.role !== "content") continue;
+    if (!elem || elem.role !== "content" || !elem.capture) continue;
     const cap = block.captures?.[elem.capture];
     if (!cap) continue;
     const binding = cap.targets["bash-ps1"];
-    if (!binding) continue;
-    if (!bindings.has(elem.capture)) {
-      bindings.set(elem.capture, { binding, optional: cap.optional ?? false });
+    if (!binding) {
+      if (!cap.optional) {
+        warning = {
+          blockId: block.id,
+          blockName: block.name,
+          reason: `no bash-ps1 binding for required capture '${elem.capture}'`,
+        };
+        break;
+      }
+      continue;
     }
+    const entry: Binding = { binding, optional: cap.optional ?? false, captureName: elem.capture };
+    elemBindings.set(tok.name, entry);
+    if (!bindingsByCapture.has(elem.capture)) bindingsByCapture.set(elem.capture, entry);
   }
 
-  // Setup lines, deduped — only for captures whose setup will actually run.
-  const seenSetup = new Set<string>();
+  if (warning) {
+    return {
+      name: block.name,
+      blockId: block.id,
+      blockSpans: { blockId: block.id, spans: [], elements: {}, themeSlot: block.themeSlot, visible: false },
+      setup: [], innerSetup: [], guard: null, warning,
+    };
+  }
+
+  // Build resolved-elements with shell refs as text, then run through shared selectSpans.
+  const refFor = (b: Binding): string => {
+    if (b.optional && b.binding.guard !== "true") {
+      return `$(${b.binding.guard} && echo "${b.binding.ref}")`;
+    }
+    return b.binding.ref;
+  };
+
+  const elements: Record<string, ResolvedElement> = {};
+  for (const [name, e] of Object.entries(block.elements)) {
+    let text = "";
+    if (e.value !== undefined) text = e.value;
+    else if (e.capture) {
+      const b = elemBindings.get(name) ?? [...bindingsByCapture.values()].find((x) => x.captureName === e.capture);
+      if (b) text = refFor(b);
+    }
+    elements[name] = { name, text, themeSlot: e.themeSlot ?? block.themeSlot, role: e.role };
+  }
+
+  const spans = selectSpans(tmpl, elements);
+
+  // Setup + guard.
+  const seen = new Set<string>();
   const setup: string[] = [];
-  const requiredBindings = [...bindings.values()].filter((b) => !b.optional);
-  const optionalBindings = [...bindings.values()].filter((b) => b.optional);
+  const innerSetup: string[] = [];
+  const required = [...bindingsByCapture.values()].filter((b) => !b.optional);
+  const optional = [...bindingsByCapture.values()].filter((b) => b.optional);
+  for (const b of required) for (const l of b.binding.setup) if (!seen.has(l)) { seen.add(l); setup.push(l); }
+  for (const b of optional) for (const l of b.binding.setup) if (!seen.has(l)) { seen.add(l); innerSetup.push(l); }
 
-  // Required setup unconditionally; optional setup goes inside block guard.
-  for (const { binding } of requiredBindings) {
-    for (const line of binding.setup) {
-      if (!seenSetup.has(line)) { seenSetup.add(line); setup.push(line); }
-    }
-  }
-
-  // Block guard: AND of required guards (ignoring "true"); if none, OR of optional guards.
-  const requiredGuards = requiredBindings.map((b) => b.binding.guard).filter((g) => g !== "true");
-  const optionalGuards = optionalBindings.map((b) => b.binding.guard).filter((g) => g !== "true");
-  const blockGuard =
-    requiredGuards.length > 0
-      ? requiredGuards.map((g) => `{ ${g}; }`).join(" && ")
-      : optionalGuards.length > 0
-        ? optionalGuards.map((g) => `{ ${g}; }`).join(" || ")
+  const reqG = required.map((b) => b.binding.guard).filter((g) => g !== "true");
+  const optG = optional.map((b) => b.binding.guard).filter((g) => g !== "true");
+  const guard =
+    reqG.length > 0
+      ? reqG.map((g) => `{ ${g}; }`).join(" && ")
+      : optG.length > 0
+        ? optG.map((g) => `{ ${g}; }`).join(" || ")
         : null;
 
-  // Optional-capture setup goes inside the if-block for efficiency.
-  const innerSetup: string[] = [];
-  for (const { binding } of optionalBindings) {
-    for (const line of binding.setup) {
-      if (!seenSetup.has(line)) { seenSetup.add(line); innerSetup.push(line); }
-    }
-  }
-
-  const blockColor = target.slotRef(block.themeSlot, theme);
-
-  // Walk tokens → build content string.
-  let content = "";
-  let activeColor = blockColor;
-  for (const tok of tokens) {
-    if (tok.kind === "lit") { content += tok.text; continue; }
-    const elem = block.elements[tok.name];
-    if (!elem) continue;
-    if (elem.value !== undefined) { content += elem.value; continue; }
-    if (!elem.capture) continue;
-    const entry = bindings.get(elem.capture);
-    if (!entry) continue;
-    const { binding: b2, optional } = entry;
-    const elemColor = elem.themeSlot ? target.slotRef(elem.themeSlot, theme) : blockColor;
-    let piece = b2.ref;
-    if (optional && b2.guard !== "true") {
-      piece = `$(${b2.guard} && echo "${piece}")`;
-    }
-    if (elemColor !== activeColor) {
-      content += elemColor;
-      activeColor = elemColor;
-    }
-    content += piece;
-  }
-
-  // Ensure color reset at end; wrap with block color at start.
-  const framed = layout === "brackets"
-    ? `\${_TT_BORDER}[${target.reset}${blockColor}${content}${target.reset}\${_TT_BORDER}]${target.reset}`
-    : `${blockColor}${content}${target.reset}`;
-
-  // Connector prefix for flow layout.
-  const connector = blockConnector(block);
-  const connectorPrefix =
-    layout === "flow" && connector
-      ? `\${_TT_MUTED}${connector}${target.reset} `
-      : "";
-
-  const appendLine = `${zoneVar}+="${connectorPrefix}${framed} "`;
-
-  if (!blockGuard) return [...setup, ...innerSetup, appendLine];
-  return [
-    ...setup,
-    `if ${blockGuard}; then`,
-    ...innerSetup.map((l) => `  ${l}`),
-    `  ${appendLine}`,
-    `fi`,
-  ];
-}
-
-// ─── Powerline/powertab (unchanged — phase 3) ─────────────────────────────────
-
-function generatePowerlineBlockContent(
-  blockId: string,
-  style: string,
-): { alwaysVisible: boolean; preamble: string[]; condition: string; content: string } | null {
-  const block = getBlockById(blockId);
-  if (!block) return null;
-  // Use the first content-bound capture's target binding (bash-ps1) as the data source.
-  const tmpl = block.styles[style] ?? block.styles[block.defaultStyle];
-  const icon = /\{icon\}/.test(tmpl) ? blockIcon(block) : "";
-  const iconPart = icon ? `${icon} ` : "";
-
-  const primaryElem = Object.values(block.elements).find((e) => e.role === "content" && e.capture);
-  if (!primaryElem || !primaryElem.capture) return null;
-  const cap = block.captures?.[primaryElem.capture];
-  if (!cap) return null;
-  const binding = cap.targets["bash-ps1"];
-  if (!binding) return null;
-
-  const alwaysVisible = binding.guard === "true";
   return {
-    alwaysVisible,
-    preamble: binding.setup,
-    condition: binding.guard,
-    content: `${iconPart}${binding.ref}`,
+    name: block.name,
+    blockId: block.id,
+    blockSpans: { blockId: block.id, spans, elements, themeSlot: block.themeSlot, visible: true },
+    setup, innerSetup, guard, warning: null,
   };
 }
 
-function generatePowerlineZoneCode(
-  zoneConfig: { blocks: Array<{ blockId: string; style: string }>; layout?: ZoneLayoutType },
-  theme: ThemeDefinition,
-  separator: string,
-): string[] {
-  const lines: string[] = [
-    `# Requires Nerd Font`,
-    `declare -a _segs _bgs _fgs _sfs`,
-    ``,
-  ];
+// ─── Painter ─────────────────────────────────────────────────────────────────
 
-  for (const inst of zoneConfig.blocks) {
-    const block = getBlockById(inst.blockId);
-    if (!block) continue;
-    const bgVar = slotVarName(block.themeSlot, theme) + "_BG";
-    const fgVar = slotVarName(block.themeSlot, theme) + "_FG";
-    const sfVar = slotVarName(block.themeSlot, theme) + "_SF";
-
-    const inner = generatePowerlineBlockContent(inst.blockId, inst.style);
-    if (!inner) continue;
-
-    if (inner.alwaysVisible) {
-      lines.push(`_segs+=("${inner.content}"); _bgs+=("\${${bgVar}}"); _fgs+=("\${${fgVar}}"); _sfs+=("\${${sfVar}}")`);
-    } else {
-      lines.push(...inner.preamble);
-      lines.push(`if ${inner.condition}; then`);
-      lines.push(`  _segs+=("${inner.content}"); _bgs+=("\${${bgVar}}"); _fgs+=("\${${fgVar}}"); _sfs+=("\${${sfVar}}")`);
-      lines.push(`fi`);
-    }
-    lines.push(``);
-  }
-
-  lines.push(
-    `local _n=\${#_segs[@]}`,
-    `for (( _i=0; _i<_n; _i++ )); do`,
-    `  _ps1+="\${_fgs[$_i]}\${_bgs[$_i]} \${_segs[$_i]} "`,
-    `  if (( _i + 1 < _n )); then`,
-    `    _ps1+="\${_sfs[$_i]}\${_bgs[$_i+1]}\\[${separator}\\]"`,
-    `  else`,
-    `    _ps1+="\${_sfs[$_i]}\\[\\e[0m\\]\\[${separator}\\]\\[\\e[0m\\]"`,
-    `  fi`,
-    `done`,
-    `unset _segs _bgs _fgs _sfs _n`,
-  );
-  return lines;
+function fgRefFor(span: RenderSpan, target: BashTarget, theme: ThemeDefinition): string {
+  if (!span.fg) return "";
+  if (span.fg === "auto-contrast") return target.fgAuto(span.bg, theme);
+  if (span.fg === "muted") return target.fgMuted(theme);
+  if (span.fg === "border") return target.fgBorder(theme);
+  if (span.fg === "default") return target.fgDefault(theme);
+  return target.fgSlot(span.fg, theme);
 }
 
-function generatePowertabZoneCode(
-  zoneConfig: { blocks: Array<{ blockId: string; style: string }> },
-  theme: ThemeDefinition,
-  separator: string,
-): string[] {
-  const lines: string[] = [`# Requires Nerd Font`, ``];
-
-  for (const inst of zoneConfig.blocks) {
-    const block = getBlockById(inst.blockId);
-    if (!block) continue;
-    const slotHex = resolveSlot(block.themeSlot, theme) ?? "#888888";
-    const bgEsc = bgEscape(slotHex);
-    const acFgEsc = fgEscape(autoContrast(slotHex));
-    const blockFgEsc = fgEscape(slotHex);
-
-    const iconElem = Object.values(block.elements ?? {}).find((e) => e.role === "icon");
-    const iconChar = iconElem?.value ?? "";
-
-    const inner = generatePowerlineBlockContent(inst.blockId, inst.style);
-    if (!inner) continue;
-
-    const seg: string[] = [`# ${block.name}`];
-    const appendSeg = () => {
-      seg.push(`_ps1+="${acFgEsc}${bgEsc} ${iconChar} ${RESET_ESCAPE}"`);
-      seg.push(`_ps1+="${blockFgEsc}${separator}${RESET_ESCAPE}"`);
-      seg.push(`_ps1+="${blockFgEsc} ${inner.content} ${RESET_ESCAPE}"`);
-    };
-    if (!inner.alwaysVisible) {
-      seg.push(...inner.preamble);
-      seg.push(`if ${inner.condition}; then`);
-      const before = seg.length;
-      appendSeg();
-      for (let i = before; i < seg.length; i++) seg[i] = "  " + seg[i];
-      seg.push(`fi`);
-    } else {
-      appendSeg();
-    }
-    lines.push(...seg, ``);
-  }
-  return lines;
+function bgRefFor(span: RenderSpan, target: BashTarget, theme: ThemeDefinition): string {
+  if (!span.bg) return "";
+  if (span.bg === "default") return target.bgDefault(theme);
+  return target.bgSlot(span.bg, theme);
 }
 
-// ─── Zone code ────────────────────────────────────────────────────────────────
+function paintRange(
+  spans: RenderSpan[],
+  start: number,
+  end: number,
+  theme: ThemeDefinition,
+  target: BashTarget,
+): string {
+  let out = "";
+  let prevFg: string | null = null;
+  let prevBg: string | null = null;
+  for (let i = start; i < end; i++) {
+    const span = spans[i];
+    const wantFg = span.fg;
+    const wantBg = span.bg;
+    if (wantFg !== prevFg || wantBg !== prevBg) {
+      if (prevFg !== null || prevBg !== null) out += target.reset;
+      if (wantBg) out += bgRefFor(span, target, theme);
+      if (wantFg) out += fgRefFor(span, target, theme);
+    }
+    out += span.text;
+    prevFg = wantFg;
+    prevBg = wantBg;
+  }
+  if (prevFg !== null || prevBg !== null) out += target.reset;
+  return out;
+}
+
+// ─── Zone emission ───────────────────────────────────────────────────────────
 
 function resolveLayout(
   zoneConfig: { layout?: ZoneLayoutType },
   config: SurfaceConfig,
-): ZoneLayoutType {
-  return zoneConfig.layout ?? getSurfaceById(config.surfaceId)?.defaultLayout ?? "plain";
+): ZoneLayout {
+  const type = zoneConfig.layout ?? getSurfaceById(config.surfaceId)?.defaultLayout ?? "plain";
+  return LAYOUT_CONFIGS[type];
 }
+
+function emitZone(
+  zoneBlocks: Array<{ blockId: string; style: string }>,
+  layout: ZoneLayout,
+  zoneVar: string,
+  theme: ThemeDefinition,
+  target: BashTarget,
+  warnings: ExportWarning[],
+): string[] {
+  const specs: BashBlockSpec[] = [];
+  for (const inst of zoneBlocks) {
+    const spec = buildBashBlockSpec(inst);
+    if (!spec) continue;
+    if (spec.warning) warnings.push(spec.warning);
+    specs.push(spec);
+  }
+
+  const blockSpansList = specs.map((s) => s.blockSpans);
+  const { spans, blockBoundaries } = arrangeZone(blockSpansList, layout);
+
+  const lines: string[] = [];
+  for (const boundary of blockBoundaries) {
+    const spec = specs[boundary.blockIndex];
+    if (!spec || !spec.blockSpans.visible) continue;
+
+    lines.push(`# ${spec.name}`);
+    for (const l of spec.setup) lines.push(l);
+
+    const painted = paintRange(spans, boundary.start, boundary.end, theme, target);
+    const appendLine = `${zoneVar}+="${painted}"`;
+
+    if (!spec.guard) {
+      for (const l of spec.innerSetup) lines.push(l);
+      lines.push(appendLine);
+    } else {
+      lines.push(`if ${spec.guard}; then`);
+      for (const l of spec.innerSetup) lines.push(`  ${l}`);
+      lines.push(`  ${appendLine}`);
+      lines.push(`fi`);
+    }
+    lines.push(``);
+  }
+  return lines;
+}
+
+// ─── Prompt section ──────────────────────────────────────────────────────────
 
 function indent(lines: string[], n = 2): string[] {
   const pad = " ".repeat(n);
   return lines.map((l) => (l === "" ? "" : pad + l));
 }
 
-// ─── Prompt section ───────────────────────────────────────────────────────────
-
-function generatePromptSection(config: SurfaceConfig, theme: ThemeDefinition): string {
+function generatePromptSection(
+  config: SurfaceConfig,
+  theme: ThemeDefinition,
+  warnings: ExportWarning[],
+): string {
   const surface = getSurfaceById(config.surfaceId);
   if (!surface) return "";
 
@@ -401,7 +425,7 @@ function generatePromptSection(config: SurfaceConfig, theme: ThemeDefinition): s
   const rightLayout = resolveLayout(rightZone ?? {}, config);
   const contLayout = resolveLayout(contZone ?? {}, config);
 
-  const hasPowerline = [leftLayout, rightLayout, contLayout].some(
+  const hasPowerline = [leftLayout.type, rightLayout.type, contLayout.type].some(
     (l) => l === "powerline" || l === "powertab",
   );
   const hasRight = isZoneEnabled("right-prompt", config) && (rightZone?.blocks.length ?? 0) > 0;
@@ -418,7 +442,6 @@ function generatePromptSection(config: SurfaceConfig, theme: ThemeDefinition): s
   scan(leftZone); scan(rightZone); scan(contZone);
 
   const fn: string[] = [];
-
   if (needsTimerSetup) {
     fn.push(`_TT_CMD_START=$(date +%s%3N)`);
     fn.push(`trap '_TT_CMD_START=$(date +%s%3N)' DEBUG`);
@@ -433,51 +456,26 @@ function generatePromptSection(config: SurfaceConfig, theme: ThemeDefinition): s
     fn.push(`  local _cmd_ms=$(( _cmd_end - _TT_CMD_START ))`);
   }
 
-  const emitZoneBlocks = (
-    zone: { blocks: Array<{ blockId: string; style: string }> },
-    layout: ZoneLayoutType,
-    zoneVar: string,
-    target: BashTarget,
-  ) => {
-    for (const inst of zone.blocks) {
-      const block = getBlockById(inst.blockId);
-      if (!block) continue;
-      fn.push(`  # ${block.name}`);
-      fn.push(...indent(emitBlock(block, inst.style, layout, theme, zoneVar, target)));
-      fn.push(``);
-    }
-  };
-
-  // Left prompt
   if ((leftZone?.blocks.length ?? 0) > 0) {
     fn.push(`  local _ps1=""`);
     fn.push(``);
-    if (leftLayout === "powerline") {
-      fn.push(...indent(generatePowerlineZoneCode(leftZone!, theme, "\\ue0b0")));
-    } else if (leftLayout === "powertab") {
-      fn.push(...indent(generatePowertabZoneCode(leftZone!, theme, "\\ue0b1")));
-    } else {
-      emitZoneBlocks(leftZone!, leftLayout, "_ps1", LEFT_TARGET);
-    }
+    fn.push(...indent(emitZone(leftZone!.blocks, leftLayout, "_ps1", theme, LEFT_TARGET, warnings)));
   }
 
-  // Right prompt
   if (hasRight) {
     fn.push(`  # ── right-prompt (cursor positioning — may be unreliable on resize)`);
     fn.push(`  local _rps1="" _rlen=0`);
     fn.push(``);
-    const rTarget = rightTarget(theme);
-    emitZoneBlocks(rightZone!, rightLayout, "_rps1", rTarget);
+    fn.push(...indent(emitZone(rightZone!.blocks, rightLayout, "_rps1", theme, rightTarget(theme), warnings)));
     fn.push(`  if [[ -n "$_rps1" ]]; then`);
     fn.push(`    printf "\\e7\\e[%dG%s\\e8" "$(( \${COLUMNS:-80} - _rlen + 1 ))" "$_rps1"`);
     fn.push(`  fi`);
     fn.push(``);
   }
 
-  // Continuation prompt
   if (hasCont) {
     fn.push(`  local _ps2=""`);
-    emitZoneBlocks(contZone!, contLayout, "_ps2", LEFT_TARGET);
+    fn.push(...indent(emitZone(contZone!.blocks, contLayout, "_ps2", theme, LEFT_TARGET, warnings)));
     fn.push(`  PS2="$_ps2"`);
     fn.push(``);
   }
@@ -491,11 +489,22 @@ function generatePromptSection(config: SurfaceConfig, theme: ThemeDefinition): s
   return fn.join("\n");
 }
 
-// ─── Main export ──────────────────────────────────────────────────────────────
+// ─── Main export ─────────────────────────────────────────────────────────────
+
+export interface BashExportResult {
+  sections: CodeSection[];
+  warnings: ExportWarning[];
+}
+
+export function exportBashDetailed(config: SurfaceConfig, theme: ThemeDefinition): BashExportResult {
+  const warnings: ExportWarning[] = [];
+  const sections: CodeSection[] = [
+    { label: "Colors", code: generateColorsSection(config, theme) },
+    { label: "Prompt", code: generatePromptSection(config, theme, warnings) },
+  ];
+  return { sections, warnings };
+}
 
 export function exportBash(config: SurfaceConfig, theme: ThemeDefinition): CodeSection[] {
-  return [
-    { label: "Colors", code: generateColorsSection(config, theme) },
-    { label: "Prompt", code: generatePromptSection(config, theme) },
-  ];
+  return exportBashDetailed(config, theme).sections;
 }

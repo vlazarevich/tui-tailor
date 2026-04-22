@@ -65,13 +65,13 @@ export interface BracketsConfig {
 }
 
 export interface PowerlineConfig {
-  separator: string;
-  terminator: string;
+  lead: string;
+  trail: string;
 }
 
 export interface PowertabConfig {
-  separator: string;
-  terminator: string;
+  lead: string;
+  trail: string;
 }
 
 export type ZoneLayoutType = "plain" | "flow" | "brackets" | "powerline" | "powertab";

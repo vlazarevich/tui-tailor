@@ -1,5 +1,28 @@
 @import "tailwindcss";
 
+/* Fully-patched Nerd Font: same glyph metrics for text and PUA symbols. */
+@font-face {
+  font-family: 'JetBrainsMono Nerd Font';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('https://cdn.jsdelivr.net/gh/ryanoasis/nerd-fonts@v3.2.1/patched-fonts/JetBrainsMono/Ligatures/Regular/JetBrainsMonoNerdFontMono-Regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'JetBrainsMono Nerd Font';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('https://cdn.jsdelivr.net/gh/ryanoasis/nerd-fonts@v3.2.1/patched-fonts/JetBrainsMono/Ligatures/Bold/JetBrainsMonoNerdFontMono-Bold.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'JetBrainsMono Nerd Font';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('https://cdn.jsdelivr.net/gh/ryanoasis/nerd-fonts@v3.2.1/patched-fonts/JetBrainsMono/Ligatures/Italic/JetBrainsMonoNerdFontMono-Italic.ttf') format('truetype');
+}
+
 @theme {
   /* Surface colors */
   --color-surface-primary: var(--tt-surface-primary);
@@ -31,7 +54,7 @@
   --color-border-muted: var(--tt-border-muted);
 
   /* Font */
-  --font-mono: ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Monaco, monospace;
+  --font-mono: 'JetBrainsMono Nerd Font', ui-monospace, 'Cascadia Code', 'Fira Code', Menlo, Monaco, monospace;
 }
 
 /* Base styles */

@@ -1,11 +1,11 @@
 import type { Surface, ZoneLayout, ZoneLayoutType } from "../types";
 
 export const LAYOUT_CONFIGS: Record<ZoneLayoutType, ZoneLayout> = {
-  plain:     { type: "plain",     config: { gap: " " } },
-  flow:      { type: "flow",      config: { gap: " " } },
-  brackets:  { type: "brackets",  config: { open: "[", close: "]", padding: "", gap: "─" } },
-  powerline: { type: "powerline", config: { separator: ">", terminator: ">" } },
-  powertab:  { type: "powertab",  config: { separator: ">", terminator: ">" } },
+  plain: { type: "plain", config: { gap: " " } },
+  flow: { type: "flow", config: { gap: " " } },
+  brackets: { type: "brackets", config: { open: "[", close: "]", padding: "", gap: "─" } },
+  powerline: { type: "powerline", config: { lead: "", trail: "" } },
+  powertab: { type: "powertab", config: { lead: "", trail: "" } },
 };
 
 export function getLayoutForType(type: ZoneLayoutType): ZoneLayout {

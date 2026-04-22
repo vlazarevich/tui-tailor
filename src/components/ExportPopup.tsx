@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import type { SurfaceConfig, CodeSection } from "../lib/types";
+import type { SurfaceConfig } from "../lib/types";
 import type { ExportTarget } from "../lib/types";
-import { exportSurface } from "../lib/exporters/index";
+import { exportSurfaceDetailed } from "../lib/exporters/index";
 import { getThemeById } from "../lib/data/themes";
 import { getSurfaceById } from "../lib/data/surfaces";
 
@@ -24,10 +24,11 @@ export default function ExportPopup({ config, targets, onClose }: Props) {
   const surface = getSurfaceById(config.surfaceId);
   const activeTarget = targets.find((t) => t.id === activeTargetId);
 
-  const sections: CodeSection[] = useMemo(
-    () => (theme ? exportSurface(config, activeTargetId, theme) : []),
-    [config, activeTargetId, theme]
-  );
+  const { sections, blockWarnings } = useMemo(() => {
+    if (!theme) return { sections: [], blockWarnings: [] };
+    const result = exportSurfaceDetailed(config, activeTargetId, theme);
+    return { sections: result.sections, blockWarnings: result.warnings };
+  }, [config, activeTargetId, theme]);
 
   // Zone cost warnings: find enabled zones with cost > 0
   const zoneWarnings: Array<{ zoneId: string; zoneName: string; message: string }> = [];
@@ -125,12 +126,17 @@ export default function ExportPopup({ config, targets, onClose }: Props) {
           </button>
         </div>
 
-        {/* Zone warnings */}
-        {zoneWarnings.length > 0 && (
+        {/* Zone + block warnings */}
+        {(zoneWarnings.length > 0 || blockWarnings.length > 0) && (
           <div className="px-[2ch] py-[1lh] flex flex-col gap-[0.5lh]">
             {zoneWarnings.map((w) => (
-              <div key={w.zoneId} className="text-semantic-warning text-sm">
+              <div key={`zone-${w.zoneId}`} className="text-semantic-warning text-sm">
                 ⚠ {w.message}
+              </div>
+            ))}
+            {blockWarnings.map((w, i) => (
+              <div key={`block-${w.blockId}-${i}`} className="text-semantic-warning text-sm">
+                ⚠ {w.blockName}: {w.reason} — block omitted from export
               </div>
             ))}
           </div>
