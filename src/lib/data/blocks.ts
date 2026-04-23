@@ -25,11 +25,7 @@ const blocks: BlockDefinition[] = [
     category: "essential",
     surfaces: ["terminal-prompt"],
     captures: {
-      username: cap(
-        (d) => d.user ?? "",
-        bashCap([], "\\u", BASH_ALWAYS),
-        psCap([], "$env:USERNAME", PS_ALWAYS),
-      ),
+      username: cap((d) => d.user ?? "", bashCap([], "\\u", BASH_ALWAYS), psCap([], "$env:USERNAME", PS_ALWAYS)),
     },
     elements: {
       username: { capture: "username", role: "content" },
@@ -47,11 +43,7 @@ const blocks: BlockDefinition[] = [
     category: "essential",
     surfaces: ["terminal-prompt"],
     captures: {
-      hostname: cap(
-        (d) => d.host ?? "",
-        bashCap([], "\\h", BASH_ALWAYS),
-        psCap([], "$env:COMPUTERNAME", PS_ALWAYS),
-      ),
+      hostname: cap((d) => d.host ?? "", bashCap([], "\\h", BASH_ALWAYS), psCap([], "$env:COMPUTERNAME", PS_ALWAYS)),
     },
     elements: {
       hostname: { capture: "hostname", role: "content" },
@@ -69,11 +61,7 @@ const blocks: BlockDefinition[] = [
     category: "essential",
     surfaces: ["terminal-prompt"],
     captures: {
-      dir: cap(
-        (d) => d.cwd ?? "",
-        bashCap([], "\\w", BASH_ALWAYS),
-        psCap([], "$(Get-Location)", PS_ALWAYS),
-      ),
+      dir: cap((d) => d.cwd ?? "", bashCap([], "\\w", BASH_ALWAYS), psCap([], "$(Get-Location)", PS_ALWAYS)),
     },
     elements: {
       dir: { capture: "dir", role: "content" },
@@ -93,16 +81,8 @@ const blocks: BlockDefinition[] = [
     captures: {
       branch: cap(
         (d) => d.branch ?? "",
-        bashCap(
-          [`local _branch; _branch=$(git branch --show-current 2>/dev/null)`],
-          "$_branch",
-          `[[ -n "$_branch" ]]`,
-        ),
-        psCap(
-          [`$branch = git branch --show-current 2>$null`],
-          "$branch",
-          "$branch",
-        ),
+        bashCap([`local _branch; _branch=$(git branch --show-current 2>/dev/null)`], "$_branch", `[[ -n "$_branch" ]]`),
+        psCap([`$branch = git branch --show-current 2>$null`], "$branch", "$branch"),
       ),
       ahead: cap(
         (d) => (d.ahead && d.ahead > 0 ? `↑${d.ahead}` : ""),
@@ -146,16 +126,8 @@ const blocks: BlockDefinition[] = [
       ),
       dirty: cap(
         (d) => (d.dirty ? "*" : ""),
-        bashCap(
-          [`local _dirty; _dirty=$(git status --porcelain 2>/dev/null | head -1)`],
-          "*",
-          `[ -n "$_dirty" ]`,
-        ),
-        psCap(
-          [`$dirty = git status --porcelain 2>$null | Select-Object -First 1`],
-          "*",
-          "$dirty",
-        ),
+        bashCap([`local _dirty; _dirty=$(git status --porcelain 2>/dev/null | head -1)`], "*", `[ -n "$_dirty" ]`),
+        psCap([`$dirty = git status --porcelain 2>$null | Select-Object -First 1`], "*", "$dirty"),
         { optional: true },
       ),
     },
@@ -387,13 +359,22 @@ const blocks: BlockDefinition[] = [
   }),
   // ─── Cloud blocks ───────────────────────────────────────────────────────────
   ...makeCloudBlock("aws-profile", "AWS Profile", "", "awsProfile", "warning", {
-    bashSrc: "$AWS_PROFILE", bashLocal: "_aws", psExpr: "$env:AWS_PROFILE", psVar: "$awsProfile",
+    bashSrc: "$AWS_PROFILE",
+    bashLocal: "_aws",
+    psExpr: "$env:AWS_PROFILE",
+    psVar: "$awsProfile",
   }),
   ...makeCloudBlock("azure-subscription", "Azure Subscription", "󰠅", "azureSub", "info", {
-    bashSrc: "$AZURE_SUBSCRIPTION", bashLocal: "_azure", psExpr: "$env:AZURE_SUBSCRIPTION", psVar: "$azureSub",
+    bashSrc: "$AZURE_SUBSCRIPTION",
+    bashLocal: "_azure",
+    psExpr: "$env:AZURE_SUBSCRIPTION",
+    psVar: "$azureSub",
   }),
   ...makeCloudBlock("gcp-project", "GCP Project", "", "gcpProject", "info", {
-    bashSrc: "$GCLOUD_PROJECT", bashLocal: "_gcp", psExpr: "$env:GCLOUD_PROJECT", psVar: "$gcpProject",
+    bashSrc: "$GCLOUD_PROJECT",
+    bashLocal: "_gcp",
+    psExpr: "$env:GCLOUD_PROJECT",
+    psVar: "$gcpProject",
   }),
   ...makeCloudBlock("kubernetes-context", "Kubernetes Context", "󱃾", "k8sContext", "info", {
     bashSrc: `$(kubectl config current-context 2>/dev/null)`,
@@ -429,7 +410,10 @@ function makeEnvVersionBlock(
       },
       elements: {
         version: { capture: "version", role: "content" },
-        icon: { value: iconChar || (id === "node-version" ? "node" : id === "python-version" ? "py" : ""), role: "icon" },
+        icon: {
+          value: iconChar || (id === "node-version" ? "node" : id === "python-version" ? "py" : ""),
+          role: "icon",
+        },
         connector: { value: "via", role: "connector" },
       },
       styles: { zen: "{version}", minimal: "{icon} {version}", extended: "{icon} v{version}" },

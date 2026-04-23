@@ -16,10 +16,10 @@ export default function ExportPanel() {
 
   function handleExport() {
     const encoded = encodeConfig(config);
-    navigator.clipboard.writeText(encoded).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
+    navigator.clipboard.writeText(encoded).then(
+      () => { setCopied(true); setTimeout(() => setCopied(false), 2000); },
+      () => { setError("Clipboard unavailable — copy the string manually"); },
+    );
   }
 
   function handleImport() {

@@ -66,50 +66,55 @@ export function composerReducer(state: ComposerState, action: Action): ComposerS
     };
   }
 
+  function updateZone(zoneId: string, fn: (z: ZoneConfig) => ZoneConfig): ComposerState {
+    const zoneConfig = config.zones[zoneId] ?? { blocks: [] };
+    return updateConfig({ zones: { ...config.zones, [zoneId]: fn(zoneConfig) } });
+  }
+
   switch (action.type) {
     case "ADD_BLOCK": {
-      const zoneConfig = config.zones[action.zoneId] ?? { blocks: [] };
-      const blocks = [...zoneConfig.blocks, { blockId: action.blockId, style: action.style }];
-      return updateConfig({ zones: { ...config.zones, [action.zoneId]: { ...zoneConfig, blocks } } });
+      return updateZone(action.zoneId, (z) => ({
+        ...z,
+        blocks: [...z.blocks, { blockId: action.blockId, style: action.style }],
+      }));
     }
     case "REMOVE_BLOCK": {
-      const zoneConfig = config.zones[action.zoneId] ?? { blocks: [] };
-      const blocks = [...zoneConfig.blocks];
-      blocks.splice(action.index, 1);
-      return updateConfig({ zones: { ...config.zones, [action.zoneId]: { ...zoneConfig, blocks } } });
+      return updateZone(action.zoneId, (z) => {
+        const blocks = [...z.blocks];
+        blocks.splice(action.index, 1);
+        return { ...z, blocks };
+      });
     }
     case "REORDER_BLOCK": {
-      const zoneConfig = config.zones[action.zoneId] ?? { blocks: [] };
-      const blocks = [...zoneConfig.blocks];
-      const [item] = blocks.splice(action.fromIndex, 1);
-      blocks.splice(action.toIndex, 0, item);
-      return updateConfig({ zones: { ...config.zones, [action.zoneId]: { ...zoneConfig, blocks } } });
+      return updateZone(action.zoneId, (z) => {
+        const blocks = [...z.blocks];
+        const [item] = blocks.splice(action.fromIndex, 1);
+        blocks.splice(action.toIndex, 0, item);
+        return { ...z, blocks };
+      });
     }
     case "MOVE_BLOCK_TO_ZONE": {
       const fromZone = config.zones[action.fromZoneId] ?? { blocks: [] };
       const toZone = config.zones[action.toZoneId] ?? { blocks: [] };
       const fromBlocks = [...fromZone.blocks];
       const [moved] = fromBlocks.splice(action.index, 1);
-      const toBlocks = [...toZone.blocks, moved];
       return updateConfig({
         zones: {
           ...config.zones,
           [action.fromZoneId]: { ...fromZone, blocks: fromBlocks },
-          [action.toZoneId]: { ...toZone, blocks: toBlocks },
+          [action.toZoneId]: { ...toZone, blocks: [...toZone.blocks, moved] },
         },
       });
     }
     case "SET_STYLE": {
-      const zoneConfig = config.zones[action.zoneId] ?? { blocks: [] };
-      const blocks = [...zoneConfig.blocks];
-      if (blocks[action.index]) {
-        blocks[action.index] = { ...blocks[action.index], style: action.style };
-      }
-      return updateConfig({ zones: { ...config.zones, [action.zoneId]: { ...zoneConfig, blocks } } });
+      return updateZone(action.zoneId, (z) => {
+        const blocks = [...z.blocks];
+        if (blocks[action.index]) blocks[action.index] = { ...blocks[action.index], style: action.style };
+        return { ...z, blocks };
+      });
     }
     case "SET_ZONE_LAYOUT": {
-      const zoneConfig = config.zones[action.zoneId] ?? { blocks: [] };
-      return updateConfig({ zones: { ...config.zones, [action.zoneId]: { ...zoneConfig, layout: action.layout } } });
+      return updateZone(action.zoneId, (z) => ({ ...z, layout: action.layout }));
     }
     case "SET_ALL_ZONES_LAYOUT": {
       const updatedZones: Record<string, ZoneConfig> = {};
@@ -141,18 +146,10 @@ export function composerReducer(state: ComposerState, action: Action): ComposerS
         configs: { ...state.configs, [action.config.surfaceId]: action.config },
       };
     }
-    case "ENABLE_ZONE": {
-      const zoneConfig = config.zones[action.zoneId] ?? { blocks: [] };
-      return updateConfig({
-        zones: { ...config.zones, [action.zoneId]: { ...zoneConfig, enabled: true } },
-      });
-    }
-    case "DISABLE_ZONE": {
-      const zoneConfig = config.zones[action.zoneId] ?? { blocks: [] };
-      return updateConfig({
-        zones: { ...config.zones, [action.zoneId]: { ...zoneConfig, enabled: false } },
-      });
-    }
+    case "ENABLE_ZONE":
+      return updateZone(action.zoneId, (z) => ({ ...z, enabled: true }));
+    case "DISABLE_ZONE":
+      return updateZone(action.zoneId, (z) => ({ ...z, enabled: false }));
     default:
       return state;
   }
