@@ -17,7 +17,7 @@ import { getSurfaceById, LAYOUT_CONFIGS } from "../data/surfaces";
 import { hexToRgb, autoContrast, resolveSlot } from "../color";
 import { isZoneEnabled } from "../composerContext";
 import { arrangeZone } from "../compose/arrange";
-import { selectSpans } from "../renderer";
+import { selectSpans } from "../compose/select";
 
 // ─── Escape helpers ───────────────────────────────────────────────────────────
 

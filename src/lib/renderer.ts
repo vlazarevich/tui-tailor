@@ -8,18 +8,9 @@ import type {
 } from "./types";
 import type { ThemeDefinition } from "./data/themes";
 import { autoContrast, resolveSlot } from "./color";
-import type { BlockSpans, SelectSpan } from "./compose/ir";
+import type { BlockSpans } from "./compose/ir";
 import { arrangeSpans } from "./compose/arrange";
-
-export type { BlockSpans, SelectSpan } from "./compose/ir";
-export {
-  arrangePlain,
-  arrangeFlow,
-  arrangeBrackets,
-  arrangePowerline,
-  arrangePowertab,
-  arrangeZone,
-} from "./compose/arrange";
+import { selectSpans, computeBlockVisibility } from "./compose/select";
 
 // ---------------------------------------------------------------------------
 // Stage 1: EMIT — resolve block elements against scenario data
@@ -47,92 +38,6 @@ function resolveElementText(
   const raw = capture.scenario(scenario);
   if (raw === undefined || raw === null || raw === "" || raw === false) return "";
   return String(raw);
-}
-
-// ---------------------------------------------------------------------------
-// Stage 2: SELECT — apply style template to produce ordered spans
-// ---------------------------------------------------------------------------
-
-export function selectSpans(styleTemplate: string, elements: Record<string, ResolvedElement>): SelectSpan[] {
-  const spans: SelectSpan[] = [];
-  const tokenPattern = /\{(\w+)\}/g;
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-
-  while ((match = tokenPattern.exec(styleTemplate)) !== null) {
-    // Literal text before this token
-    if (match.index > lastIndex) {
-      spans.push({ text: styleTemplate.slice(lastIndex, match.index), themeSlot: null, role: "literal" });
-    }
-
-    const elemName = match[1];
-    const elem = elements[elemName];
-    if (elem && elem.text !== "") {
-      spans.push({ text: elem.text, themeSlot: elem.themeSlot, role: elem.role });
-    }
-
-    lastIndex = match.index + match[0].length;
-  }
-
-  // Trailing literal
-  if (lastIndex < styleTemplate.length) {
-    spans.push({ text: styleTemplate.slice(lastIndex), themeSlot: null, role: "literal" });
-  }
-
-  // Collapse adjacent spaces caused by empty elements
-  return collapseSpaces(spans);
-}
-
-function collapseSpaces(spans: SelectSpan[]): SelectSpan[] {
-  const result: SelectSpan[] = [];
-  for (const span of spans) {
-    if (span.role === "literal" && span.text.trim() === "") {
-      // This is a whitespace-only literal — check if it's between two non-empty spans
-      if (result.length > 0) {
-        result.push(span);
-      }
-      continue;
-    }
-    result.push(span);
-  }
-
-  // Remove trailing whitespace-only literals
-  while (
-    result.length > 0 &&
-    result[result.length - 1].role === "literal" &&
-    result[result.length - 1].text.trim() === ""
-  ) {
-    result.pop();
-  }
-  // Remove leading whitespace-only literals
-  while (result.length > 0 && result[0].role === "literal" && result[0].text.trim() === "") {
-    result.shift();
-  }
-
-  // Collapse consecutive whitespace-only literals
-  const collapsed: SelectSpan[] = [];
-  for (let i = 0; i < result.length; i++) {
-    const span = result[i];
-    if (span.role === "literal" && span.text.trim() === "") {
-      // Check if next non-literal span exists
-      const next = result[i + 1];
-      if (!next) continue;
-      if (next.role === "literal" && next.text.trim() === "") continue;
-    }
-    collapsed.push(span);
-  }
-
-  return collapsed;
-}
-
-export function computeBlockVisibility(elements: Record<string, ResolvedElement>): boolean {
-  // Block is visible when at least one source-based element has non-empty text
-  // Static-value elements (icons, connectors) don't count
-  for (const elem of Object.values(elements)) {
-    if (elem.role === "icon" || elem.role === "connector") continue;
-    if (elem.text !== "") return true;
-  }
-  return false;
 }
 
 // ---------------------------------------------------------------------------

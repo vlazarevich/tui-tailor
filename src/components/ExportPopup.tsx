@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import type { SurfaceConfig } from "../lib/types";
-import type { ExportTarget } from "../lib/types";
+import type { SurfaceConfig, ExportTarget } from "../lib/types";
 import { exportSurfaceDetailed } from "../lib/exporters/index";
 import { getThemeById } from "../lib/data/themes";
 import { getSurfaceById } from "../lib/data/surfaces";

@@ -70,9 +70,7 @@ export function composerReducer(state: ComposerState, action: Action): ComposerS
     case "ADD_BLOCK": {
       const zoneConfig = config.zones[action.zoneId] ?? { blocks: [] };
       const blocks = [...zoneConfig.blocks, { blockId: action.blockId, style: action.style }];
-      return updateConfig({
-        zones: { ...config.zones, [action.zoneId]: { ...zoneConfig, blocks } },
-      });
+      return updateConfig({ zones: { ...config.zones, [action.zoneId]: { ...zoneConfig, blocks } } });
     }
     case "REMOVE_BLOCK": {
       const zoneConfig = config.zones[action.zoneId] ?? { blocks: [] };
@@ -111,9 +109,7 @@ export function composerReducer(state: ComposerState, action: Action): ComposerS
     }
     case "SET_ZONE_LAYOUT": {
       const zoneConfig = config.zones[action.zoneId] ?? { blocks: [] };
-      return updateConfig({
-        zones: { ...config.zones, [action.zoneId]: { ...zoneConfig, layout: action.layout } },
-      });
+      return updateConfig({ zones: { ...config.zones, [action.zoneId]: { ...zoneConfig, layout: action.layout } } });
     }
     case "SET_ALL_ZONES_LAYOUT": {
       const updatedZones: Record<string, ZoneConfig> = {};
@@ -181,4 +177,3 @@ export function useActiveConfig(): SurfaceConfig {
   const state = useComposerState();
   return state.configs[state.activeSurfaceId] ?? createDefaultConfig(state.activeSurfaceId);
 }
-

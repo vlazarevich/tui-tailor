@@ -1,7 +1,5 @@
 import type { ResolvedElement, RenderSpan } from "../types";
 
-export type { RenderSpan } from "../types";
-
 export interface SelectSpan {
   text: string;
   themeSlot: string | null;
