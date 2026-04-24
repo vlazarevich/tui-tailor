@@ -19,7 +19,18 @@ function migrateZones(zones: Record<string, unknown>): void {
 }
 import { DEFAULT_THEME_ID } from "./data/themes";
 import { DEFAULT_SURFACE_ID } from "./data/surfaces";
+import { getBlockById } from "./data/blocks";
 import { createDefaultConfig, type ComposerState } from "./composerContext";
+
+function hasValidBlockIds(config: SurfaceConfig): boolean {
+  for (const zone of Object.values(config.zones)) {
+    if (!zone || !Array.isArray(zone.blocks)) continue;
+    for (const inst of zone.blocks) {
+      if (!getBlockById(inst.blockId)) return false;
+    }
+  }
+  return true;
+}
 
 const STORAGE_PREFIX = "tui-tailor:";
 const THEME_KEY = `${STORAGE_PREFIX}theme`;
@@ -44,6 +55,10 @@ export function loadSurfaceConfig(surfaceId: string): SurfaceConfig | null {
     const parsed = JSON.parse(raw);
     // Migrate old format: zones were Record<string, BlockInstance[]>, now Record<string, ZoneConfig>
     if (parsed.zones) migrateZones(parsed.zones);
+    if (!hasValidBlockIds(parsed as SurfaceConfig)) {
+      console.warn(`[tui-tailor] Discarding persisted config for ${surfaceId}: unknown block IDs`);
+      return null;
+    }
     return parsed;
   } catch {
     return null;
@@ -113,6 +128,10 @@ export function decodeConfig(encoded: string): SurfaceConfig | null {
     const parsed = JSON.parse(json);
     if (!parsed.surfaceId || !parsed.zones) return null;
     migrateZones(parsed.zones);
+    if (!hasValidBlockIds(parsed as SurfaceConfig)) {
+      console.warn(`[tui-tailor] Rejecting imported config: unknown block IDs`);
+      return null;
+    }
     return parsed as SurfaceConfig;
   } catch {
     return null;

@@ -468,12 +468,17 @@ function generatePromptSection(
   const promptChar = String(config.globalOptions?.["prompt-char"] ?? "❯");
   const multiline = Boolean(config.globalOptions?.["multiline"] ?? false);
 
-  let needsExitCapture = false;
-  let needsTimerSetup = false;
+  const preExecSeen = new Set<string>();
+  const preExecLines: string[] = [];
+  const promptLocalSeen = new Set<string>();
+  const promptLocalLines: string[] = [];
   for (const zone of surface.zones) {
     for (const inst of config.zones[zone.id]?.blocks ?? []) {
-      if (inst.blockId === "exit-code") needsExitCapture = true;
-      if (inst.blockId === "cmd-duration") needsTimerSetup = true;
+      const b = getBlockById(inst.blockId);
+      const hook = b?.targetHooks?.["bash-ps1"];
+      if (!hook) continue;
+      for (const l of hook.preExec) if (!preExecSeen.has(l)) { preExecSeen.add(l); preExecLines.push(l); }
+      for (const l of hook.promptLocal) if (!promptLocalSeen.has(l)) { promptLocalSeen.add(l); promptLocalLines.push(l); }
     }
   }
 
@@ -483,19 +488,14 @@ function generatePromptSection(
   });
 
   const fn: string[] = [];
-  if (needsTimerSetup) {
-    fn.push(`_TT_CMD_START=$(date +%s%3N)`);
-    fn.push(`trap '_TT_CMD_START=$(date +%s%3N)' DEBUG`);
+  if (preExecLines.length > 0) {
+    for (const l of preExecLines) fn.push(l);
     fn.push(``);
   }
 
   fn.push(`_tt_build_prompt() {`);
   if (hasPowerline) fn.push(`  # Requires Nerd Font`);
-  if (needsExitCapture) fn.push(`  local _last_exit=$?`);
-  if (needsTimerSetup) {
-    fn.push(`  local _cmd_end; _cmd_end=$(date +%s%3N)`);
-    fn.push(`  local _cmd_ms=$(( _cmd_end - _TT_CMD_START ))`);
-  }
+  for (const l of promptLocalLines) fn.push(`  ${l}`);
 
   for (const zone of surface.zones) {
     const binding = zone.targetBindings["bash-ps1"];

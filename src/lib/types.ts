@@ -20,6 +20,11 @@ export interface CaptureDefinition {
   targets: Record<ExportTargetId, TargetCaptureBinding>;
 }
 
+export interface TargetHook {
+  preExec: string[];
+  promptLocal: string[];
+}
+
 export interface BlockDefinition {
   id: string;
   name: string;
@@ -31,6 +36,7 @@ export interface BlockDefinition {
   themeSlot: string;
   defaultStyle: string;
   exportCosts: Record<string, number>;
+  targetHooks?: Partial<Record<ExportTargetId, TargetHook>>;
 }
 
 export interface ResolvedElement {
@@ -93,24 +99,60 @@ export interface ScenarioData {
   cwd?: string;
   user?: string;
   host?: string;
+  shell?: string;
+  os?: string;
   branch?: string;
   dirty?: boolean;
   staged?: number;
   unstaged?: number;
   untracked?: number;
+  deleted?: number;
+  renamed?: number;
   ahead?: number;
   behind?: number;
+  linesAdded?: number;
+  linesRemoved?: number;
   exitCode?: number;
+  isSudo?: boolean;
+  battery?: string;
+  memUsage?: string;
+  diskUsage?: string;
   nodeVersion?: string;
+  nodeTargetVersion?: string;
   pythonVersion?: string;
+  pythonTargetVersion?: string;
   rubyVersion?: string;
+  rubyTargetVersion?: string;
   golangVersion?: string;
+  golangTargetVersion?: string;
   rustVersion?: string;
+  rustTargetVersion?: string;
   javaVersion?: string;
+  javaTargetVersion?: string;
+  kotlinVersion?: string;
+  kotlinTargetVersion?: string;
+  scalaVersion?: string;
+  scalaTargetVersion?: string;
+  dotnetVersion?: string;
+  dotnetTargetVersion?: string;
+  phpVersion?: string;
+  phpTargetVersion?: string;
+  luaVersion?: string;
+  luaTargetVersion?: string;
+  swiftVersion?: string;
+  swiftTargetVersion?: string;
+  dartVersion?: string;
+  dartTargetVersion?: string;
+  elixirVersion?: string;
+  elixirTargetVersion?: string;
   awsProfile?: string;
   azureSub?: string;
   gcpProject?: string;
   k8sContext?: string;
+  dockerContext?: string;
+  helmChart?: string;
+  terraformWorkspace?: string;
+  pulumiStack?: string;
   time?: string;
   jobCount?: number;
   cmdDuration?: string;

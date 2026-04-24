@@ -1,4 +1,4 @@
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Block definition schema
 Each block in the registry SHALL have: a unique string ID, a display name, a category, a list of compatible surface IDs, a named elements map (each element with role, source or value, optional format, and optional themeSlot), a primary themeSlot for the block, style presets as element template strings, and a default style preset name.
@@ -88,6 +88,16 @@ The block catalog SHALL display categories in a defined order: essential, vcs, s
 #### Scenario: Categories render in order
 - **WHEN** the block catalog displays categories for terminal-prompt
 - **THEN** essential appears before vcs, vcs before status, status before language, language before cloud
+
+### Requirement: Seed data
+The registry SHALL include block definitions sufficient for a full terminal prompt experience: 30 blocks across 5 categories (essential, vcs, status, language, cloud).
+
+#### Scenario: App renders with full block catalog
+- **WHEN** the app loads
+- **THEN** the surface switcher shows at least one surface
+- **AND** the block catalog shows exactly 30 blocks in 5 categories
+
+## ADDED Requirements
 
 ### Requirement: session block (essential)
 The `session` block SHALL show consolidated identity — user, host, shell, OS, any subset. It SHALL define 7 style presets: `user-only`, `host-only`, `shell-only`, `os-only`, `user@host`, `shell+os`, `all`.
@@ -189,14 +199,6 @@ The `sysinfo` block SHALL show memory and disk utilisation. It SHALL define 3 st
 - **THEN** it defines presets: `mem-only`, `mem+disk`, `full`
 - **AND** `defaultStyle` is `mem-only`
 
-### Requirement: jobs block (status)
-The `jobs` block SHALL show background shell job count. It SHALL define 2 style presets: `minimal`, `extended`.
-
-#### Scenario: jobs presets defined
-- **WHEN** the `jobs` block is retrieved
-- **THEN** it defines presets: `minimal`, `extended`
-- **AND** `defaultStyle` is `minimal`
-
 ### Requirement: 14 language blocks
 The registry SHALL contain blocks for: `node`, `python`, `ruby`, `go`, `rust`, `java`, `kotlin`, `scala`, `dotnet`, `php`, `lua`, `swift`, `dart`, `elixir`. Each SHALL be in the `language` category with 4 presets: `minimal`, `compare`, `extended`, `max`.
 
@@ -227,42 +229,8 @@ The registry SHALL contain blocks for: `aws`, `azure`, `gcp`, `kubernetes`, `doc
 - **WHEN** the relevant scenario field is absent
 - **THEN** the cloud block is not visible
 
-### Requirement: Per-element theme sub-slots
-The theme system SHALL support sub-slots for fine-grained block element coloring. Sub-slots follow the pattern `parentSlot-qualifier` (e.g., `vcs-ahead`, `vcs-behind`, `vcs-dirty`). Themes MAY define sub-slots explicitly. If a sub-slot is not defined in the active theme, it SHALL fall back to its parent slot.
-
-#### Scenario: Theme defines sub-slot
-- **WHEN** a theme defines `vcs: "#a6e3a1"` and `vcs-ahead: "#94e2d5"`
-- **THEN** elements referencing `vcs-ahead` use "#94e2d5"
-
-#### Scenario: Sub-slot falls back to parent
-- **WHEN** a theme defines `vcs: "#a6e3a1"` but does not define `vcs-behind`
-- **THEN** elements referencing `vcs-behind` fall back to "#a6e3a1"
-
-### Requirement: Surface definition schema
-Each surface SHALL have: a unique string ID, a display name, a list of zone definitions (each with ID and display name), a set of global options (e.g., multiline, promptChar) with types and defaults, and a default zone layout configuration.
-
-#### Scenario: Surface defines zones
-- **WHEN** a surface "terminal-prompt" is defined
-- **THEN** it includes zones like "left-prompt" and "right-prompt", each with an ID and display name
-
-#### Scenario: Surface defines global options
-- **WHEN** a surface "terminal-prompt" is defined
-- **THEN** it includes global options like multiline (boolean, default false) and promptChar (string, default "❯")
-
-#### Scenario: Surface defines default zone layout
-- **WHEN** a surface "terminal-prompt" is defined
-- **THEN** it includes a default zone layout of type "plain" with gap " "
-
-### Requirement: Seed data
-The registry SHALL include block definitions sufficient for a full terminal prompt experience: 30 blocks across 5 categories (essential, vcs, status, language, cloud).
-
-#### Scenario: App renders with full block catalog
-- **WHEN** the app loads
-- **THEN** the surface switcher shows at least one surface
-- **AND** the block catalog shows exactly 30 blocks in 5 categories
-
 ### Requirement: BlockDefinition includes export cost map
-Each `BlockDefinition` SHALL include an `exportCosts` field of type `Record<ExportTargetId, number>`. This field declares the cost of exporting this block to each known target. Absent entries default to 0 (native support). All blocks currently in the registry SHALL declare cost 0 for both `bash-ps1` and `powershell-prompt`.
+Each `BlockDefinition` SHALL include an `exportCosts` field of type `Record<ExportTargetId, number>`. All blocks currently in the registry SHALL declare cost 0 for both `bash-ps1` and `powershell-prompt`.
 
 #### Scenario: Default export cost for standard blocks
 - **WHEN** the registry is loaded
@@ -273,7 +241,7 @@ Each `BlockDefinition` SHALL include an `exportCosts` field of type `Record<Expo
 - **THEN** the cost is treated as 0 by the export cost aggregation logic
 
 ### Requirement: Zones declare per-target bindings
-Each `ZoneDefinition` SHALL include a `targetBindings: Record<TargetId, ZoneTargetBinding>` map. Each entry describes how the zone maps into the named target's output in that target's own vocabulary. A `ZoneTargetBinding` SHALL carry at least a `slot: string` field and MAY carry a `strategy: string` and additional target-specific fields.
+Each `ZoneDefinition` SHALL include a `targetBindings: Record<TargetId, ZoneTargetBinding>` map. Each entry describes how the zone maps into the named target's output.
 
 #### Scenario: Terminal-prompt zones declare bash bindings
 - **WHEN** inspecting the `terminal-prompt` surface in `src/lib/data/surfaces.ts`

@@ -433,12 +433,17 @@ function generatePromptSection(
   const promptChar = String(config.globalOptions?.["prompt-char"] ?? "❯");
   const multiline = Boolean(config.globalOptions?.["multiline"] ?? false);
 
-  let needsExitCapture = false;
-  let needsTimerSetup = false;
+  const preExecSeen = new Set<string>();
+  const preExecLines: string[] = [];
+  const promptLocalSeen = new Set<string>();
+  const promptLocalLines: string[] = [];
   for (const zone of surface.zones) {
     for (const inst of config.zones[zone.id]?.blocks ?? []) {
-      if (inst.blockId === "exit-code") needsExitCapture = true;
-      if (inst.blockId === "cmd-duration") needsTimerSetup = true;
+      const b = getBlockById(inst.blockId);
+      const hook = b?.targetHooks?.["powershell-prompt"];
+      if (!hook) continue;
+      for (const l of hook.preExec) if (!preExecSeen.has(l)) { preExecSeen.add(l); preExecLines.push(l); }
+      for (const l of hook.promptLocal) if (!promptLocalSeen.has(l)) { promptLocalSeen.add(l); promptLocalLines.push(l); }
     }
   }
 
@@ -448,14 +453,14 @@ function generatePromptSection(
   });
 
   const lines: string[] = [];
-  if (needsTimerSetup) {
-    lines.push(`$global:TtCmdStart = Get-Date`, ``);
+  if (preExecLines.length > 0) {
+    for (const l of preExecLines) lines.push(l);
+    lines.push(``);
   }
 
   lines.push(`function Prompt {`);
   if (hasPowerline) lines.push(`    # Requires Nerd Font`);
-  if (needsExitCapture) lines.push(`    $exitCode = $LASTEXITCODE`);
-  if (needsTimerSetup) lines.push(`    $global:TtCmdStart = Get-Date`);
+  for (const l of promptLocalLines) lines.push(`    ${l}`);
 
   lines.push(`    $prompt = ""`);
   lines.push(``);

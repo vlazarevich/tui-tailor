@@ -37,15 +37,12 @@ const THEME: ThemeDefinition = {
 };
 
 const LAYOUTS: ZoneLayoutType[] = ["plain", "flow", "brackets", "powerline", "powertab"];
-const STYLES = ["zen", "minimal", "extended"];
-const ALL_BLOCK_IDS = BLOCKS.map((b) => b.id);
 
-function mkConfig(blockIds: string[], style: string, layout: ZoneLayoutType): SurfaceConfig {
-  const blocks: BlockInstance[] = blockIds.map((blockId) => ({ blockId, style }));
+function mkConfig(blockInsts: BlockInstance[], layout: ZoneLayoutType): SurfaceConfig {
   return {
     surfaceId: "terminal-prompt",
     themeId: THEME.id,
-    zones: { "left-prompt": { blocks, layout } },
+    zones: { "left-prompt": { blocks: blockInsts, layout } },
     globalOptions: { "prompt-char": "❯", multiline: false },
   };
 }
@@ -59,28 +56,34 @@ function write(name: string, text: string) {
   console.log("wrote", name);
 }
 
-// 1. Every block × every style at default (plain) layout
-for (const blockId of ALL_BLOCK_IDS) {
-  for (const style of STYLES) {
-    const cfg = mkConfig([blockId], style, "plain");
-    write(`bash__${blockId}__${style}__plain.txt`, sectionsToString(exportBash(cfg, THEME)));
-    write(`pwsh__${blockId}__${style}__plain.txt`, sectionsToString(exportPowerShell(cfg, THEME)));
+// 1. Every block × every defined style at default (plain) layout
+for (const block of BLOCKS) {
+  for (const style of Object.keys(block.styles)) {
+    const cfg = mkConfig([{ blockId: block.id, style }], "plain");
+    write(`bash__${block.id}__${style}__plain.txt`, sectionsToString(exportBash(cfg, THEME)));
+    write(`pwsh__${block.id}__${style}__plain.txt`, sectionsToString(exportPowerShell(cfg, THEME)));
   }
 }
 
 // 2. Mixed config × each layout
-const MIX = ["user", "host", "cwd", "git-branch", "exit-code", "node-version"];
+const MIX: BlockInstance[] = [
+  { blockId: "session", style: "user@host" },
+  { blockId: "cwd", style: "tilde" },
+  { blockId: "git", style: "minimal" },
+  { blockId: "last-command", style: "code+duration" },
+  { blockId: "node", style: "minimal" },
+];
 for (const layout of LAYOUTS) {
-  const cfg = mkConfig(MIX, "minimal", layout);
-  write(`bash__mix__minimal__${layout}.txt`, sectionsToString(exportBash(cfg, THEME)));
-  write(`pwsh__mix__minimal__${layout}.txt`, sectionsToString(exportPowerShell(cfg, THEME)));
+  const cfg = mkConfig(MIX, layout);
+  write(`bash__mix__default__${layout}.txt`, sectionsToString(exportBash(cfg, THEME)));
+  write(`pwsh__mix__default__${layout}.txt`, sectionsToString(exportPowerShell(cfg, THEME)));
 }
 
-// 3. git-branch with all element variations (zen quirk)
-for (const style of STYLES) {
-  const cfg = mkConfig(["git-branch"], style, "flow");
-  write(`bash__git-branch__${style}__flow.txt`, sectionsToString(exportBash(cfg, THEME)));
-  write(`pwsh__git-branch__${style}__flow.txt`, sectionsToString(exportPowerShell(cfg, THEME)));
+// 3. git block with each style under flow layout
+for (const style of Object.keys(BLOCKS.find((b) => b.id === "git")!.styles)) {
+  const cfg = mkConfig([{ blockId: "git", style }], "flow");
+  write(`bash__git__${style}__flow.txt`, sectionsToString(exportBash(cfg, THEME)));
+  write(`pwsh__git__${style}__flow.txt`, sectionsToString(exportPowerShell(cfg, THEME)));
 }
 
 // 4. Right-prompt + multiline globals
@@ -89,8 +92,8 @@ for (const style of STYLES) {
     surfaceId: "terminal-prompt",
     themeId: THEME.id,
     zones: {
-      "left-prompt": { blocks: [{ blockId: "cwd", style: "minimal" }], layout: "plain" },
-      "right-prompt": { blocks: [{ blockId: "time", style: "minimal" }], layout: "plain" },
+      "left-prompt": { blocks: [{ blockId: "cwd", style: "tilde" }], layout: "plain" },
+      "right-prompt": { blocks: [{ blockId: "clock", style: "time-only" }], layout: "plain" },
     },
     globalOptions: { "prompt-char": "λ", multiline: true },
   };
